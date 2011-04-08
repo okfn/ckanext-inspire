@@ -1,4 +1,16 @@
+'''
+Different harvesters for INSPIRE related resources
+
+    - GeminiHarvester - CSW servers with support for the GEMINI metadata profile
+    - GeminiDocHarvester - An individual GEMINI resource
+    - GeminiWafHarvester - An index page with links to GEMINI resources
+
+TODO: Harvesters for generic INSPIRE CSW servers
+
+'''
 from lxml import etree
+import urllib2
+
 
 import logging
 log = logging.getLogger(__name__)
@@ -12,7 +24,8 @@ from ckan.lib.munge import munge_title_to_name
 from ckan.plugins.core import SingletonPlugin, implements
 
 from ckanext.harvest.interfaces import IHarvester
-from ckanext.harvest.model import HarvestObject, HarvestGatherError, HarvestObjectError
+from ckanext.harvest.model import HarvestObject, HarvestGatherError, \
+                                    HarvestObjectError
 
 from ckanext.inspire.model import GeminiDocument
 
@@ -25,12 +38,10 @@ except ImportError:
     log.error('No CSW support installed -- install ckanext-csw')
     raise
 
-class GeminiHarvester(SingletonPlugin):
 
-    implements(IHarvester)
-    
+class InspireHarvester(object):
     csw=None
-        
+
     validator=None
 
     def _setup_csw_server(self,url):
@@ -40,12 +51,12 @@ class GeminiHarvester(SingletonPlugin):
         profiles = [
             x.strip() for x in
             config.get(
-                "ckan.inspire.validator.profiles", 
-                "iso19139,gemini2",
-            ).split(",")
+                'ckan.inspire.validator.profiles',
+                'iso19139,gemini2',
+            ).split(',')
         ]
         self.validator = Validator(profiles=profiles)
-       
+
 
     def _save_gather_error(self,message,job):
         err = HarvestGatherError(message=message,job=job)
@@ -58,78 +69,20 @@ class GeminiHarvester(SingletonPlugin):
         err.save()
         raise Exception(message)
 
-
-    def get_type(self):
-        return 'Gemini'
-
-    def gather_stage(self,harvest_job):
-        log.info('In GeminiHarvester gather_stage')
-        # Get source URL
-        url = harvest_job.source.url
-        
-        # Setup CSW server
+    def _get_content(self, url):
         try:
-            self._setup_csw_server(url)
+            http_response = urllib2.urlopen(url)
+            return http_response.read()
         except Exception, e:
-            self._save_gather_error('Error contacting the CSW server: %s' % e,harvest_job)
-            return None
+            raise e
 
 
-        log.debug('Starting gathering for %s ' % url)
-        used_identifiers = []
-        ids = []
-        try:
-            for identifier in self.csw.getidentifiers(page=10):
-                log.info('Got identifier %s from the CSW', identifier)
-                if identifier in used_identifiers:
-                    log.error('CSW identifier %r already used, skipping...' % identifier)
-                    continue
-                if identifier is None:
-                    #self.job.report['errors'].append('CSW returned identifier %r, skipping...' % identifier)
-                    log.error('CSW returned identifier %r, skipping...' % identifier)
-                    ## log an error here? happens with the dutch data
-                    continue
-
-                # Create a new HarvestObject for this identifier
-                obj = HarvestObject(guid = identifier, source = harvest_job.source,job = harvest_job)
-                obj.save()
-
-                ids.append(obj.id)
-                used_identifiers.append(identifier)
-        except Exception, e:
-            self._save_gather_error('%r'%e.message,job)
-       
-        return ids
-
-    def fetch_stage(self,harvest_object):
-        url = harvest_object.source.url
-        # Setup CSW server
-        try:
-            self._setup_csw_server(url)
-        except Exception, e:
-            self._save_object_error('Error contacting the CSW server: %s' % e,harvest_object)
-            return None
-
-
-        identifier = harvest_object.guid 
-
-        record = self.csw.getrecordbyid([identifier])
-        if record is None:
-            self._save_object_error('Empty record for ID %s' % identifier,harvest_object)
-            return False
-
-        # Save the fetch contents in the HarvestObject
-        harvest_object.content = record['xml']
-        harvest_object.save()
-
-        log.debug('XML content saved (len %s)', len(record['xml']))
-        return True
-        
+    # All three harvesters share the same import stage
     def import_stage(self,harvest_object):
-        
+
         if not harvest_object:
             raise Exception('No harvest object received')
- 
+
         # Save a reference
         self.obj = harvest_object
 
@@ -142,8 +95,6 @@ class GeminiHarvester(SingletonPlugin):
             return True
         except Exception, e:
             self._save_object_error('%r'%e,harvest_object,'Import')
-
-
 
     def import_gemini_object(self, gemini_string):
         try:
@@ -174,7 +125,6 @@ class GeminiHarvester(SingletonPlugin):
         come from a URL.
         '''
         # Look for previously harvested document matching Gemini GUID
-        harvested_doc = None
         package = None
         gemini_document = GeminiDocument(content)
         gemini_values = gemini_document.read_values()
@@ -185,59 +135,38 @@ class GeminiHarvester(SingletonPlugin):
                             .order_by(HarvestObject.created.desc()).all()
 
         last_harvested_object = harvested_objects[1] if len(harvested_objects) > 1 else None
-            
-        # This is not relevant anymore, as new HarvestObjects are created on every fetch
-        '''
-        if len(harvested_documents) > 1:
-            # A programming error; should never happen
-            raise Exception(
-                "More than one harvested document GUID %s" % gemini_guid
-            )
-        elif len(harvested_documents) == 1:
-        '''
+
         if last_harvested_object:
             # We've previously harvested this (i.e. it's an update)
-            #TODO: can we delete sources?
-            '''
-            if harvested_doc.source is None:
-                # The source has been deleted, we can re-use it
-                log.info('This document existed from another source which was deleted, using your document instead')
-                harvested_doc.source = self.job.source
-                package = harvested_doc.package
-                harvested_doc.save()
-                package.save()
-                return None
-            '''
             if last_harvested_object.source.id != self.obj.source.id:
                 # A 'user' error: there are two or more sources
                 # pointing to the same harvested document
                 if self.obj.source.id is None:
                     raise Exception('You cannot have an unsaved job source')
 
+                #TODO: Maybe a Warning?
                 raise Exception(
-                    literal("Another source %s (publisher %s, user %s) is using metadata GUID %s" % (
+                    'Another source %s (publisher %s, user %s) is using metadata GUID %s' % (
                         last_harvested_object.source.url,
                         last_harvested_object.source.publisher_id,
                         last_harvested_object.source.user_id,
                         gemini_guid,
                     ))
-                )
-            #import pdb
-            #pdb.set_trace()
 
-            if last_harvested_object.content == self.obj.content and last_harvested_object.package:
-                # The content hasn't changed, no need to update the package, just update
-                # the reference to the existing package
+            if last_harvested_object.content == self.obj.content \
+               and last_harvested_object.package:
+                # The content hasn't changed, no need to update the package,
+                # just update the reference to the existing package
                 self.obj.package = last_harvested_object.package
                 self.obj.save()
 
-                log.info("Document with GUID %s unchanged, skipping..." % (gemini_guid))
+                log.info('Document with GUID %s unchanged, skipping...' % (gemini_guid))
                 return None
 
-            log.info("Package for %s needs to be created or updated" % gemini_guid)
+            log.info('Package for %s needs to be created or updated' % gemini_guid)
             package = last_harvested_object.package
         else:
-            log.info("No package with GEMINI guid %s found, let's create one" % gemini_guid)
+            log.info('No package with GEMINI guid %s found, let''s create one' % gemini_guid)
 
         extras = {
             'published_by': int(self.obj.source.publisher_id or 0),
@@ -247,12 +176,12 @@ class GeminiHarvester(SingletonPlugin):
         # Just add some of the metadata as extras, not the whole lot
         for name in [
             # Essentials
-            'bbox-east-long', 
-            'bbox-north-lat', 
-            'bbox-south-lat', 
+            'bbox-east-long',
+            'bbox-north-lat',
+            'bbox-south-lat',
             'bbox-west-long',
             'spatial-reference-system',
-            'guid', 
+            'guid',
             # Usefuls
             'dataset-reference-date',
             'resource-type',
@@ -261,7 +190,7 @@ class GeminiHarvester(SingletonPlugin):
         ]:
             extras[name] = gemini_values[name]
 
-        extras['constraint'] = '; '.join(gemini_values.get("use-constraints", '')+gemini_values.get("limitations-on-public-access"))
+        extras['constraint'] = '; '.join(gemini_values.get('use-constraints', '')+gemini_values.get('limitations-on-public-access'))
         if gemini_values.has_key('temporal-extent-begin'):
             #gemini_values['temporal-extent-begin'].sort()
             extras['temporal_coverage-from'] = gemini_values['temporal-extent-begin']
@@ -297,10 +226,10 @@ class GeminiHarvester(SingletonPlugin):
         if package == None:
             # Create new package from data.
             package = self._create_package_from_data(package_data)
-            log.info("Created new package ID %s with GEMINI guid %s", package.id, gemini_guid)
+            log.info('Created new package ID %s with GEMINI guid %s', package.id, gemini_guid)
         else:
             package = self._create_package_from_data(package_data, package = package)
-            log.info("Updated existing package ID %s with existing GEMINI guid %s", package.id, gemini_guid)
+            log.info('Updated existing package ID %s with existing GEMINI guid %s', package.id, gemini_guid)
 
         # Set reference to package in the HarvestObject
         self.obj.package = package
@@ -313,7 +242,7 @@ class GeminiHarvester(SingletonPlugin):
         name = munge_title_to_name(title).replace('_', '-')
         while '--' in name:
             name = name.replace('--', '-')
-        like_q = u"%s%%" % name
+        like_q = u'%s%%' % name
         pkg_query = Session.query(Package).filter(Package.name.ilike(like_q)).limit(100)
         taken = [pkg.name for pkg in pkg_query]
         if name not in taken:
@@ -327,7 +256,7 @@ class GeminiHarvester(SingletonPlugin):
             return None
 
     def _create_package_from_data(self, package_data, package = None):
-        ''' 
+        '''
         {'extras': {'INSPIRE': 'True',
                     'bbox-east-long': '-3.12442',
                     'bbox-north-lat': '54.218407',
@@ -359,7 +288,7 @@ class GeminiHarvester(SingletonPlugin):
             package = Package()
 
         rev = repo.new_revision()
-        
+
         relationship_attr = ['extras', 'resources', 'tags']
 
         package_properties = {}
@@ -371,13 +300,13 @@ class GeminiHarvester(SingletonPlugin):
 
         for tag in tags:
             package.add_tag_by_name(tag, autoflush=False)
-        
-        for resource_dict in package_data.get("resources", []):
+
+        for resource_dict in package_data.get('resources', []):
             resource = Resource(**resource_dict)
             package.resources[:] = []
             package.resources.append(resource)
 
-        for key, value in package_data.get("extras", {}).iteritems():
+        for key, value in package_data.get('extras', {}).iteritems():
             extra = PackageExtra(key=key, value=value)
             package._extras[key] = extra
 
@@ -392,4 +321,244 @@ class GeminiHarvester(SingletonPlugin):
         Session.commit()
 
         return package
+
+    def get_gemini_string_and_guid(self,content):
+        try:
+            xml = etree.fromstring(content)
+
+            # The validator and GeminiDocument don't like the container
+            gemini_xml = xml.find('{http://www.isotc211.org/2005/gmd}MD_Metadata')
+            if self.validator is not None:
+                valid, messages = self.validator.isvalid(gemini_xml)
+                if not valid:
+                    self._save_gather_error('Content is not a valid Gemini document %r'%messages,harvest_job)
+
+            gemini_string = etree.tostring(gemini_xml)
+            gemini_document = GeminiDocument(gemini_string)
+            gemini_values = gemini_document.read_values()
+            gemini_guid = gemini_values['guid']
+
+            return gemini_string, gemini_guid
+        except Exception,e:
+            raise e
+
+class GeminiHarvester(InspireHarvester,SingletonPlugin):
+    '''
+    A Harvester for CSW servers that implement the GEMINI metadata profile
+    '''
+    implements(IHarvester)
+
+    def get_type(self):
+        return 'Gemini'
+
+    def gather_stage(self,harvest_job):
+        log.debug('In GeminiHarvester gather_stage')
+        # Get source URL
+        url = harvest_job.source.url
+
+        # Setup CSW server
+        try:
+            self._setup_csw_server(url)
+        except Exception, e:
+            self._save_gather_error('Error contacting the CSW server: %s' % e,harvest_job)
+            return None
+
+
+        log.debug('Starting gathering for %s ' % url)
+        used_identifiers = []
+        ids = []
+        try:
+            for identifier in self.csw.getidentifiers(page=10):
+                log.info('Got identifier %s from the CSW', identifier)
+                if identifier in used_identifiers:
+                    log.error('CSW identifier %r already used, skipping...' % identifier)
+                    continue
+                if identifier is None:
+                    #self.job.report['errors'].append('CSW returned identifier %r, skipping...' % identifier)
+                    log.error('CSW returned identifier %r, skipping...' % identifier)
+                    ## log an error here? happens with the dutch data
+                    continue
+
+                # Create a new HarvestObject for this identifier
+                obj = HarvestObject(guid = identifier, source = harvest_job.source,job = harvest_job)
+                obj.save()
+
+                ids.append(obj.id)
+                used_identifiers.append(identifier)
+        except Exception, e:
+            self._save_gather_error('%r'%e.message,job)
+
+        return ids
+
+    def fetch_stage(self,harvest_object):
+        url = harvest_object.source.url
+        # Setup CSW server
+        try:
+            self._setup_csw_server(url)
+        except Exception, e:
+            self._save_object_error('Error contacting the CSW server: %s' % e,harvest_object)
+            return None
+
+
+        identifier = harvest_object.guid
+
+        record = self.csw.getrecordbyid([identifier])
+        if record is None:
+            self._save_object_error('Empty record for ID %s' % identifier,harvest_object)
+            return False
+
+        # Save the fetch contents in the HarvestObject
+        harvest_object.content = record['xml']
+        harvest_object.save()
+
+        log.debug('XML content saved (len %s)', len(record['xml']))
+        return True
+
+
+class GeminiDocHarvester(InspireHarvester,SingletonPlugin):
+    '''
+    A Harvester for individual GEMINI documents
+    '''
+
+    implements(IHarvester)
+
+    def get_type(self):
+        return 'GeminiDoc'
+
+    def gather_stage(self,harvest_job):
+        log.debug('In GeminiDocHarvester gather_stage')
+
+        # Get source URL
+        url = harvest_job.source.url
+
+        # Get contents
+        try:
+            content = self._get_content(url)
+        except Exception,e:
+            self._save_gather_error('Unable to get content for URL: %s: %r' % \
+                                        (url, e),harvest_job)
+            return None
+
+        try:
+            # We need to extract the guid to pass it to the next stage
+            gemini_string, gemini_guid = self.get_gemini_string_and_guid(content)
+
+            if gemini_guid:
+                # Create a new HarvestObject for this identifier
+                # Generally the content will be set in the fetch stage, but as we alredy
+                # have it, we might as well save a request
+                obj = HarvestObject(guid=gemini_guid,
+                                    source=harvest_job.source,
+                                    job=harvest_job,
+                                    content=gemini_string)
+                obj.save()
+
+                log.info('Got GUID %s' % gemini_guid)
+                return [obj.id]
+            else:
+                log.error('Could not get the GUID for source %s' % url)
+                return None
+        except Exception, e:
+            self._save_gather_error('%r'%e.message,harvest_job)
+
+
+    def fetch_stage(self,harvest_object):
+        # The fetching was already done in the previous stage
+        return True
+
+
+class GeminiWafHarvester(InspireHarvester,SingletonPlugin):
+    '''
+    A Harvester for index pages with links to GEMINI documents
+    '''
+
+    implements(IHarvester)
+
+    def get_type(self):
+        return 'GeminiWaf'
+
+    def gather_stage(self,harvest_job):
+        log.debug('In GeminiWafHarvester gather_stage')
+
+        # Get source URL
+        url = harvest_job.source.url
+
+        # Get contents
+        try:
+            content = self._get_content(url)
+        except Exception,e:
+            self._save_gather_error('Unable to get content for URL: %s: %r' % \
+                                        (url, e),harvest_job)
+            return None
+
+        ids = []
+        for url in self._extract_urls(content,url):
+            try:
+                content = self._get_content(url)
+            except Exception, e:
+                msg = 'Couldn''t harvest WAF link: %s: %s' % (url, e)
+                self._save_gather_error(msg,harvest_job)
+            else:
+                # We need to extract the guid to pass it to the next stage
+                try:
+                    gemini_string, gemini_guid = self.get_gemini_string_and_guid(content)
+                    if gemini_guid:
+                        log.debug('Got GUID %s' % gemini_guid)
+                        # Create a new HarvestObject for this identifier
+                        # Generally the content will be set in the fetch stage, but as we alredy
+                        # have it, we might as well save a request
+                        obj = HarvestObject(guid=gemini_guid,
+                                            source=harvest_job.source,
+                                            job=harvest_job,
+                                            content=gemini_string)
+                        obj.save()
+
+                        ids.append(obj.id)
+
+
+                except Exception,e:
+                    msg = 'Could not get GUID for source %s: %r' % (url,e)
+                    self.save_gather_error(msg,harvest_job)
+
+        if len(ids) > 0:
+            return ids
+        else:
+            self._save_gather_error('Couldn''t find any links to metadata files',
+                                     harvest_job)
+            return None
+
+    def fetch_stage(self,harvest_object):
+        # The fetching was already done in the previous stage
+        return True
+
+
+    def _extract_urls(self, content, base_url):
+        '''
+        Get the URLs out of a WAF index page
+        '''
+        try:
+            parser = etree.HTMLParser()
+            tree = etree.fromstring(content, parser=parser)
+        except Exception, inst:
+            msg = 'Couldn''t parse content into a tree: %s: %s' \
+                  % (inst, content)
+            raise Exception(msg)
+        urls = []
+        for url in tree.xpath('//a/@href'):
+            url = url.strip()
+            if not url:
+                continue
+            if '?' in url:
+                continue
+            if '/' in url:
+                continue
+            urls.append(url)
+        base_url = base_url.split('/')
+        if 'index' in base_url[-1]:
+            base_url.pop()
+        base_url = '/'.join(base_url)
+        base_url.rstrip('/')
+        base_url += '/'
+        return [base_url + i for i in urls]
+
 

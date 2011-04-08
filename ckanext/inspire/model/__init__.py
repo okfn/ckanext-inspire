@@ -90,7 +90,7 @@ class MappedXmlElement(MappedXmlObject):
     def fix_multiplicity(self, values):
         if self.multiplicity == "0":
             if values:
-                raise HarvesterError(
+                raise Exception(
                     "Values found for element '%s': %s" % (self.name, values))
             else:
                 return ""
@@ -98,7 +98,7 @@ class MappedXmlElement(MappedXmlObject):
             if values:
                 return values[0]
             else:
-                raise HarvesterError(
+                raise Exception(
                     "Value not found for element '%s'" % self.name)
         elif self.multiplicity == "*":
             return values
@@ -110,7 +110,7 @@ class MappedXmlElement(MappedXmlObject):
         elif self.multiplicity == "1..*":
             return values
         else:
-            raise HarvesterError(
+            raise Exception(
                 "Can't fix element values for multiplicity '%s'." % \
                                 self.multiplicity)
 
