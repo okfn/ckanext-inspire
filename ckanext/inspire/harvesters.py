@@ -64,8 +64,7 @@ class InspireHarvester(object):
         raise Exception(message)
 
     def _save_object_error(self,message,obj,stage=u'Fetch'):
-        err = HarvestObjectError(message=message, \
-                job=obj.job, object=obj,stage=stage)
+        err = HarvestObjectError(message=message,object=obj,stage=stage)
         err.save()
         raise Exception(message)
 
@@ -130,11 +129,12 @@ class InspireHarvester(object):
         gemini_values = gemini_document.read_values()
         gemini_guid = gemini_values['guid']
 
-
-        harvested_objects = HarvestObject.filter(guid=gemini_guid) \
+        harvested_objects = Session.query(HarvestObject) \
+                            .filter(HarvestObject.guid==gemini_guid) \
+                            .filter(HarvestObject.package!=None) \
                             .order_by(HarvestObject.created.desc()).all()
 
-        last_harvested_object = harvested_objects[1] if len(harvested_objects) > 1 else None
+        last_harvested_object = harvested_objects[0] if len(harvested_objects) > 0 else None
 
         if last_harvested_object:
             # We've previously harvested this (i.e. it's an update)
@@ -155,11 +155,7 @@ class InspireHarvester(object):
 
             if last_harvested_object.content == self.obj.content \
                and last_harvested_object.package:
-                # The content hasn't changed, no need to update the package,
-                # just update the reference to the existing package
-                self.obj.package = last_harvested_object.package
-                self.obj.save()
-
+                # The content hasn't changed, no need to update the package
                 log.info('Document with GUID %s unchanged, skipping...' % (gemini_guid))
                 return None
 
@@ -380,7 +376,7 @@ class GeminiHarvester(InspireHarvester,SingletonPlugin):
                     continue
 
                 # Create a new HarvestObject for this identifier
-                obj = HarvestObject(guid = identifier, source = harvest_job.source,job = harvest_job)
+                obj = HarvestObject(guid = identifier, job = harvest_job)
                 obj.save()
 
                 ids.append(obj.id)
@@ -448,7 +444,6 @@ class GeminiDocHarvester(InspireHarvester,SingletonPlugin):
                 # Generally the content will be set in the fetch stage, but as we alredy
                 # have it, we might as well save a request
                 obj = HarvestObject(guid=gemini_guid,
-                                    source=harvest_job.source,
                                     job=harvest_job,
                                     content=gemini_string)
                 obj.save()
@@ -508,7 +503,6 @@ class GeminiWafHarvester(InspireHarvester,SingletonPlugin):
                         # Generally the content will be set in the fetch stage, but as we alredy
                         # have it, we might as well save a request
                         obj = HarvestObject(guid=gemini_guid,
-                                            source=harvest_job.source,
                                             job=harvest_job,
                                             content=gemini_string)
                         obj.save()
@@ -518,7 +512,7 @@ class GeminiWafHarvester(InspireHarvester,SingletonPlugin):
 
                 except Exception,e:
                     msg = 'Could not get GUID for source %s: %r' % (url,e)
-                    self.save_gather_error(msg,harvest_job)
+                    self._save_gather_error(msg,harvest_job)
 
         if len(ids) > 0:
             return ids
