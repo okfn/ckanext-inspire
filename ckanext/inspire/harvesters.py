@@ -29,6 +29,12 @@ from ckanext.harvest.model import HarvestObject, HarvestGatherError, \
 
 from ckanext.inspire.model import GeminiDocument
 
+try:
+    from ckanext.spatial.lib import save_extent
+    save_extents = True
+except ImportError:
+    log.error('No spatial support installed -- install ckanext-spatial if you want to support spatial queries')
+    save_extents = False
 
 try:
     from ckanext.csw.services import CswService
@@ -115,9 +121,6 @@ class InspireHarvester(object):
             raise
         else:
             pass
-            #TODO: Should we keep this somewhere?
-#           if package:
-#                self.job.report['added'].append(package.name)
 
     def write_package_from_gemini_string(self, content):
         '''Create or update a Package based on some content that has
@@ -230,6 +233,14 @@ class InspireHarvester(object):
         # Set reference to package in the HarvestObject
         self.obj.package = package
         self.obj.save()
+
+        # Save spatial extent
+        if package.extras.get('bbox-east-long') and save_extents:
+            try:
+                save_extent(package)
+            except:
+                log.error('There was an error saving the package extent. Have you set up the package_extent table in the DB?')
+                raise
 
         assert gemini_guid == package.harvest_objects[0].guid
         return package
