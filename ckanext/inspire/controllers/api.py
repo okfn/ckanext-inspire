@@ -4,6 +4,7 @@ from pylons import response
 from pkg_resources import resource_stream, resource_filename
 from lxml import etree
 from ckan.model.meta import Session
+from ckan.lib.base import abort
 
 from ckanext.harvest.model import HarvestObject
 
