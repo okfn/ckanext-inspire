@@ -195,7 +195,8 @@ class InspireHarvester(object):
         ]:
             extras[name] = gemini_values[name]
 
-        extras['constraint'] = '; '.join(gemini_values.get('use-constraints', '')+gemini_values.get('limitations-on-public-access'))
+        extras['licence'] = gemini_values.get('use-constraints', '')
+        extras['access_constraints'] = gemini_values.get('limitations-on-public-access','')
         if gemini_values.has_key('temporal-extent-begin'):
             #gemini_values['temporal-extent-begin'].sort()
             extras['temporal_coverage-from'] = gemini_values['temporal-extent-begin']
