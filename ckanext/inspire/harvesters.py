@@ -156,8 +156,14 @@ class InspireHarvester(object):
                         gemini_guid,
                     ))
 
-            if last_harvested_object.content == self.obj.content \
-               and last_harvested_object.package:
+            last_gemini_document = GeminiDocument(last_harvested_object.content)
+            last_gemini_values = last_gemini_document.read_values()
+
+            # Use reference date instead of content to determine if the package
+            # needs to be updated
+            if last_gemini_values['date-updated'] == gemini_values['date-updated'] and \
+               last_gemini_values['date-released'] == gemini_values['date-released'] and \
+               last_gemini_values['date-created'] == gemini_values['date-created']:
                 # The content hasn't changed, no need to update the package
                 log.info('Document with GUID %s unchanged, skipping...' % (gemini_guid))
                 return None
