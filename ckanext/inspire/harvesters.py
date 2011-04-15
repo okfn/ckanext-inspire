@@ -67,12 +67,12 @@ class InspireHarvester(object):
     def _save_gather_error(self,message,job):
         err = HarvestGatherError(message=message,job=job)
         err.save()
-        raise Exception(message)
+        log.error(message)
 
     def _save_object_error(self,message,obj,stage=u'Fetch'):
         err = HarvestObjectError(message=message,object=obj,stage=stage)
         err.save()
-        raise Exception(message)
+        log.error(message)
 
     def _get_content(self, url):
         try:
@@ -86,7 +86,8 @@ class InspireHarvester(object):
     def import_stage(self,harvest_object):
 
         if not harvest_object:
-            raise Exception('No harvest object received')
+            log.error('No harvest object received')
+            return False
 
         # Save a reference
         self.obj = harvest_object
@@ -397,7 +398,6 @@ class GeminiHarvester(InspireHarvester,SingletonPlugin):
                     log.error('CSW identifier %r already used, skipping...' % identifier)
                     continue
                 if identifier is None:
-                    #self.job.report['errors'].append('CSW returned identifier %r, skipping...' % identifier)
                     log.error('CSW returned identifier %r, skipping...' % identifier)
                     ## log an error here? happens with the dutch data
                     continue
