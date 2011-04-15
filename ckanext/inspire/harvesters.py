@@ -192,6 +192,7 @@ class InspireHarvester(object):
             'resource-type',
             'metadata-language', # Language
             'metadata-date', # Released
+            'coupled-resource',
         ]:
             extras[name] = gemini_values[name]
 
@@ -341,7 +342,15 @@ class InspireHarvester(object):
             xml = etree.fromstring(content)
 
             # The validator and GeminiDocument don't like the container
-            gemini_xml = xml.find('{http://www.isotc211.org/2005/gmd}MD_Metadata')
+            metadata_tag = '{http://www.isotc211.org/2005/gmd}MD_Metadata'
+            if xml.tag == metadata_tag:
+                gemini_xml = xml
+            else:
+                gemini_xml = xml.find(metadata_tag)
+
+            if not gemini_xml:
+                self._save_gather_error('Content is not a valid Gemini document %r'%messages,harvest_job)
+
             if self.validator is not None:
                 valid, messages = self.validator.isvalid(gemini_xml)
                 if not valid:
@@ -456,7 +465,7 @@ class GeminiDocHarvester(InspireHarvester,SingletonPlugin):
         try:
             # We need to extract the guid to pass it to the next stage
             gemini_string, gemini_guid = self.get_gemini_string_and_guid(content)
-
+            
             if gemini_guid:
                 # Create a new HarvestObject for this identifier
                 # Generally the content will be set in the fetch stage, but as we alredy

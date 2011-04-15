@@ -235,6 +235,32 @@ class GeminiReferenceDate(GeminiElement):
         ),
     ]
 
+class GeminiCoupledResources(GeminiElement):
+
+    elements = [
+        GeminiElement(
+            name="title",
+            search_paths=[
+                "@xlink:title",
+            ],
+            multiplicity="*",
+        ),
+        GeminiElement(
+            name="href",
+            search_paths=[
+                "@xlink:href",
+            ],
+            multiplicity="*",
+        ),
+        GeminiElement(
+            name="uuid",
+            search_paths=[
+                "@uuidref",
+            ],
+            multiplicity="*",
+        ),
+
+    ]
 
 class GeminiDocument(MappedXmlDocument):
 
@@ -503,13 +529,20 @@ class GeminiDocument(MappedXmlDocument):
             ],
             multiplicity="0..1",
         ),
-        GeminiElement(
+        GeminiCoupledResources(
             name="coupled-resource",
             search_paths=[
-                "gmd:identificationInfo/srv:SV_ServiceIdentification/srv:operatesOn/@xlink:href",
+                "gmd:identificationInfo/srv:SV_ServiceIdentification/srv:operatesOn",
             ],
             multiplicity="*",
         ),
+#        GeminiElement(
+#            name="coupled-resource",
+#            search_paths=[
+#                "gmd:identificationInfo/srv:SV_ServiceIdentification/srv:operatesOn/@xlink:href",
+#            ],
+#            multiplicity="*",
+#        ),
         GeminiElement(
             name="additional-information-source",
             search_paths=[
