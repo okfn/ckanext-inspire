@@ -29,6 +29,8 @@ from ckanext.harvest.model import HarvestObject, HarvestGatherError, \
 
 from ckanext.inspire.model import GeminiDocument
 
+from owslib import wms
+
 try:
     from ckanext.spatial.lib import save_extent
     save_extents = True
@@ -49,6 +51,14 @@ class InspireHarvester(object):
     csw=None
 
     validator=None
+
+    def _is_wms(self,url):
+        try:
+            s = wms.WebMapService(url)
+            return isinstance(s.contents, dict) and s.contents != {}
+        except:
+            pass
+        return False
 
     def _setup_csw_server(self,url):
         self.csw = CswService(url)
@@ -225,8 +235,11 @@ class InspireHarvester(object):
         resource_locator = gemini_values.get('resource-locator', []) and gemini_values['resource-locator'][0].get('url') or ''
 
         if resource_locator:
-            # TODO: Are we sure that all services are WMS?
-            _format = 'WMS' if extras['resource-type'] == 'service' else 'Unverified'
+            if extras['resource-type'] == 'service':
+                _format = 'WMS' if self._is_wms(resource_locator) else 'Unverified'
+            else: 
+                _format = 'Unverified'
+
             package_data['resources'] = [
                 {
                     'url': resource_locator,
