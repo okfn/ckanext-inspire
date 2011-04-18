@@ -165,8 +165,12 @@ class InspireHarvester(object):
             if last_gemini_values['date-updated'] == gemini_values['date-updated'] and \
                last_gemini_values['date-released'] == gemini_values['date-released'] and \
                last_gemini_values['date-created'] == gemini_values['date-created']:
-                # The content hasn't changed, no need to update the package
-                log.info('Document with GUID %s unchanged, skipping...' % (gemini_guid))
+
+                if last_harvested_object.content != self.obj.content:
+                    raise Exception('The contents of document with GUID %s changed, but the reference date has not been updated' % gemini_guid)
+                else:
+                    # The content hasn't changed, no need to update the package
+                    log.info('Document with GUID %s unchanged, skipping...' % (gemini_guid))
                 return None
 
             log.info('Package for %s needs to be created or updated' % gemini_guid)
@@ -348,8 +352,6 @@ class InspireHarvester(object):
                 gemini_xml = xml
             else:
                 gemini_xml = xml.find(metadata_tag)
-            import pdb
-            pdb.set_trace()
 
             if not gemini_xml:
                 self._save_gather_error('Content is not a valid Gemini document %r'%messages,harvest_job)
