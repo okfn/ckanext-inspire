@@ -159,13 +159,14 @@ class InspireHarvester(object):
                     raise Exception('You cannot have an unsaved job source')
 
                 #TODO: Maybe a Warning?
-                raise Exception(
-                    'Another source %s (publisher %s, user %s) is using metadata GUID %s' % (
-                        last_harvested_object.source.url,
-                        last_harvested_object.source.publisher_id,
-                        last_harvested_object.source.user_id,
-                        gemini_guid,
-                    ))
+                if last_harvested_object.source.active:
+                    raise Exception(
+                        'Another active source %s (publisher %s, user %s) is using metadata GUID %s' % (
+                            last_harvested_object.source.url,
+                            last_harvested_object.source.publisher_id,
+                            last_harvested_object.source.user_id,
+                            gemini_guid,
+                        ))
 
             last_gemini_document = GeminiDocument(last_harvested_object.content)
             last_gemini_values = last_gemini_document.read_values()
