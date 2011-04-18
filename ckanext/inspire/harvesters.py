@@ -348,6 +348,8 @@ class InspireHarvester(object):
                 gemini_xml = xml
             else:
                 gemini_xml = xml.find(metadata_tag)
+            import pdb
+            pdb.set_trace()
 
             if not gemini_xml:
                 self._save_gather_error('Content is not a valid Gemini document %r'%messages,harvest_job)
@@ -373,7 +375,7 @@ class GeminiHarvester(InspireHarvester,SingletonPlugin):
     implements(IHarvester)
 
     def get_type(self):
-        return 'Gemini'
+        return 'CSW Server'
 
     def gather_stage(self,harvest_job):
         log.debug('In GeminiHarvester gather_stage')
@@ -446,7 +448,7 @@ class GeminiDocHarvester(InspireHarvester,SingletonPlugin):
     implements(IHarvester)
 
     def get_type(self):
-        return 'GeminiDoc'
+        return 'Single Document'
 
     def gather_stage(self,harvest_job):
         log.debug('In GeminiDocHarvester gather_stage')
@@ -497,7 +499,7 @@ class GeminiWafHarvester(InspireHarvester,SingletonPlugin):
     implements(IHarvester)
 
     def get_type(self):
-        return 'GeminiWaf'
+        return 'Web Accessible Folder (WAF)'
 
     def gather_stage(self,harvest_job):
         log.debug('In GeminiWafHarvester gather_stage')
