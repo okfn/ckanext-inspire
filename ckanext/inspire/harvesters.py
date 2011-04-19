@@ -368,12 +368,12 @@ class InspireHarvester(object):
                 gemini_xml = xml.find(metadata_tag)
 
             if not gemini_xml:
-                self._save_gather_error('Content is not a valid Gemini document %r'%messages,harvest_job)
+                self._save_gather_error('Content is not a valid Gemini document',self.harvest_job)
 
             if self.validator is not None:
                 valid, messages = self.validator.isvalid(gemini_xml)
                 if not valid:
-                    self._save_gather_error('Content is not a valid Gemini document %r'%messages,harvest_job)
+                    self._save_gather_error('Content is not a valid Gemini document %r'%messages,self.harvest_job)
 
             gemini_string = etree.tostring(gemini_xml)
             gemini_document = GeminiDocument(gemini_string)
@@ -520,6 +520,8 @@ class GeminiWafHarvester(InspireHarvester,SingletonPlugin):
     def gather_stage(self,harvest_job):
         log.debug('In GeminiWafHarvester gather_stage')
 
+        self.harvest_job = harvest_job
+
         # Get source URL
         url = harvest_job.source.url
 
@@ -536,7 +538,7 @@ class GeminiWafHarvester(InspireHarvester,SingletonPlugin):
             try:
                 content = self._get_content(url)
             except Exception, e:
-                msg = 'Couldn''t harvest WAF link: %s: %s' % (url, e)
+                msg = 'Couldn\'t harvest WAF link: %s: %s' % (url, e)
                 self._save_gather_error(msg,harvest_job)
             else:
                 # We need to extract the guid to pass it to the next stage
