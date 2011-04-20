@@ -427,7 +427,7 @@ class GeminiHarvester(InspireHarvester,SingletonPlugin):
                 ids.append(obj.id)
                 used_identifiers.append(identifier)
         except Exception, e:
-            self._save_gather_error('%r'%e.message,job)
+            self._save_gather_error('%r'%e.message, harvest_job)
 
         return ids
 
