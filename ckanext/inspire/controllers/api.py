@@ -8,7 +8,7 @@ from ckan.lib.base import abort
 
 from ckanext.harvest.model import HarvestObject
 
-from ckan.controllers.rest import BaseApiController
+from ckan.controllers.api import ApiController as BaseApiController
 
 log = __import__("logging").getLogger(__name__)
 
