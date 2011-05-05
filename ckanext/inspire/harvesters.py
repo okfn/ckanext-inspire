@@ -184,7 +184,6 @@ class InspireHarvester(object):
                     # The content hasn't changed, no need to update the package
                     log.info('Document with GUID %s unchanged, skipping...' % (gemini_guid))
                 return None
-
             log.info('Package for %s needs to be created or updated' % gemini_guid)
             package = last_harvested_object.package
         else:
@@ -221,6 +220,13 @@ class InspireHarvester(object):
         if gemini_values.has_key('temporal-extent-end'):
             #gemini_values['temporal-extent-end'].sort()
             extras['temporal_coverage-to'] = gemini_values['temporal-extent-end']
+
+        #Save responsible organization roles
+        parties = []
+        for responsible_party in gemini_values['responsible-organisation']:
+            parties.append('%s (%s)' % (responsible_party['organisation-name'], responsible_party['role']))
+        extras['responsible-party'] = '; '.join(parties)
+
         package_data = {
             'title': gemini_values['title'],
             'notes': gemini_values['abstract'],
