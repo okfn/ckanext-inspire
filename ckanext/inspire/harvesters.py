@@ -86,6 +86,7 @@ class InspireHarvester(object):
 
     def _get_content(self, url):
         try:
+            url = url.replace(' ','%20')
             http_response = urllib2.urlopen(url)
             return http_response.read()
         except Exception, e:
@@ -110,7 +111,7 @@ class InspireHarvester(object):
             self.import_gemini_object(harvest_object.content)
             return True
         except Exception, e:
-            self._save_object_error('%r'%e,harvest_object,'Import')
+            self._save_object_error('Error importing Gemini document: %r'%e,harvest_object,'Import')
 
     def import_gemini_object(self, gemini_string):
         try:
@@ -411,23 +412,29 @@ class GeminiHarvester(InspireHarvester,SingletonPlugin):
         ids = []
         try:
             for identifier in self.csw.getidentifiers(page=10):
-                log.info('Got identifier %s from the CSW', identifier)
-                if identifier in used_identifiers:
-                    log.error('CSW identifier %r already used, skipping...' % identifier)
-                    continue
-                if identifier is None:
-                    log.error('CSW returned identifier %r, skipping...' % identifier)
-                    ## log an error here? happens with the dutch data
+                try:
+                    log.info('Got identifier %s from the CSW', identifier)
+                    if identifier in used_identifiers:
+                        log.error('CSW identifier %r already used, skipping...' % identifier)
+                        continue
+                    if identifier is None:
+                        log.error('CSW returned identifier %r, skipping...' % identifier)
+                        ## log an error here? happens with the dutch data
+                        continue
+
+                    # Create a new HarvestObject for this identifier
+                    obj = HarvestObject(guid = identifier, job = harvest_job)
+                    obj.save()
+
+                    ids.append(obj.id)
+                    used_identifiers.append(identifier)
+                except Exception, e:
+                    self._save_gather_error('Error for the identifier %s [%r]' % (identifier,e), harvest_job)
                     continue
 
-                # Create a new HarvestObject for this identifier
-                obj = HarvestObject(guid = identifier, job = harvest_job)
-                obj.save()
-
-                ids.append(obj.id)
-                used_identifiers.append(identifier)
         except Exception, e:
-            self._save_gather_error('%r'%e.message, harvest_job)
+            self._save_gather_error('Error gathering the identifiers from the CSW server [%r]' % e, harvest_job)
+            return None
 
         return ids
 
@@ -496,10 +503,11 @@ class GeminiDocHarvester(InspireHarvester,SingletonPlugin):
                 log.info('Got GUID %s' % gemini_guid)
                 return [obj.id]
             else:
-                log.error('Could not get the GUID for source %s' % url)
+                self._save_gather_error('Could not get the GUID for source %s' % url, harvest_job)
                 return None
         except Exception, e:
-            self._save_gather_error('%r'%e.message,harvest_job)
+            self._save_gather_error('Error parsing the document. Is this a valid Gemini document?: %s [%r]'% (url,e),harvest_job)
+            return None
 
 
     def fetch_stage(self,harvest_object):
@@ -560,6 +568,7 @@ class GeminiWafHarvester(InspireHarvester,SingletonPlugin):
                 except Exception,e:
                     msg = 'Could not get GUID for source %s: %r' % (url,e)
                     self._save_gather_error(msg,harvest_job)
+                    continue
 
         if len(ids) > 0:
             return ids
