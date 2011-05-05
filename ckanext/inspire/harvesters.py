@@ -445,19 +445,27 @@ class GeminiHarvester(InspireHarvester,SingletonPlugin):
             self._setup_csw_server(url)
         except Exception, e:
             self._save_object_error('Error contacting the CSW server: %s' % e,harvest_object)
-            return None
+            return False
 
 
         identifier = harvest_object.guid
-
-        record = self.csw.getrecordbyid([identifier])
+        try:
+            record = self.csw.getrecordbyid([identifier])
+        except Exception, e:
+            self._save_object_error('Error getting the CSW record with GUID %s' % identifier,harvest_object)
+            return False
+            
         if record is None:
-            self._save_object_error('Empty record for ID %s' % identifier,harvest_object)
+            self._save_object_error('Empty record for GUID %s' % identifier,harvest_object)
             return False
 
-        # Save the fetch contents in the HarvestObject
-        harvest_object.content = record['xml']
-        harvest_object.save()
+        try:
+            # Save the fetch contents in the HarvestObject
+            harvest_object.content = record['xml']
+            harvest_object.save()
+        except Exception,e:
+            self._save_object_error('Error saving the harvest object for GUID %s [%r]' % (identifier,e),harvest_object)
+            return False
 
         log.debug('XML content saved (len %s)', len(record['xml']))
         return True
@@ -542,33 +550,40 @@ class GeminiWafHarvester(InspireHarvester,SingletonPlugin):
             return None
 
         ids = []
-        for url in self._extract_urls(content,url):
-            try:
-                content = self._get_content(url)
-            except Exception, e:
-                msg = 'Couldn\'t harvest WAF link: %s: %s' % (url, e)
-                self._save_gather_error(msg,harvest_job)
-            else:
-                # We need to extract the guid to pass it to the next stage
+        try:
+            for url in self._extract_urls(content,url):
                 try:
-                    gemini_string, gemini_guid = self.get_gemini_string_and_guid(content)
-                    if gemini_guid:
-                        log.debug('Got GUID %s' % gemini_guid)
-                        # Create a new HarvestObject for this identifier
-                        # Generally the content will be set in the fetch stage, but as we alredy
-                        # have it, we might as well save a request
-                        obj = HarvestObject(guid=gemini_guid,
-                                            job=harvest_job,
-                                            content=gemini_string)
-                        obj.save()
-
-                        ids.append(obj.id)
-
-
-                except Exception,e:
-                    msg = 'Could not get GUID for source %s: %r' % (url,e)
+                    content = self._get_content(url)
+                except Exception, e:
+                    msg = 'Couldn\'t harvest WAF link: %s: %s' % (url, e)
                     self._save_gather_error(msg,harvest_job)
                     continue
+                else:
+                    # We need to extract the guid to pass it to the next stage
+                    try:
+                        gemini_string, gemini_guid = self.get_gemini_string_and_guid(content)
+                        if gemini_guid:
+                            log.debug('Got GUID %s' % gemini_guid)
+                            # Create a new HarvestObject for this identifier
+                            # Generally the content will be set in the fetch stage, but as we alredy
+                            # have it, we might as well save a request
+                            obj = HarvestObject(guid=gemini_guid,
+                                                job=harvest_job,
+                                                content=gemini_string)
+                            obj.save()
+
+                            ids.append(obj.id)
+
+
+                    except Exception,e:
+                        msg = 'Could not get GUID for source %s: %r' % (url,e)
+                        self._save_gather_error(msg,harvest_job)
+                        continue
+        except Exception,e:
+            msg = 'Error extracting URLs from %s' % url
+            self._save_gather_error(msg,harvest_job)
+            return None
+
 
         if len(ids) > 0:
             return ids
