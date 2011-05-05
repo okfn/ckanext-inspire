@@ -222,10 +222,17 @@ class InspireHarvester(object):
             extras['temporal_coverage-to'] = gemini_values['temporal-extent-end']
 
         #Save responsible organization roles
-        parties = []
+        parties = {}
         for responsible_party in gemini_values['responsible-organisation']:
-            parties.append('%s (%s)' % (responsible_party['organisation-name'], responsible_party['role']))
-        extras['responsible-party'] = '; '.join(parties)
+            if responsible_party['organisation-name'] in parties:
+                if not responsible_party['role'] in parties[responsible_party['organisation-name']]:
+                    parties[responsible_party['organisation-name']].append(responsible_party['role'])
+            else:
+                parties[responsible_party['organisation-name']] = [responsible_party['role']]
+        parties_extra = []
+        for party_name in parties: 
+            parties_extra.append('%s (%s)' % (party_name, ', '.join(parties[party_name])))
+        extras['responsible-party'] = '; '.join(parties_extra)
 
         package_data = {
             'title': gemini_values['title'],
