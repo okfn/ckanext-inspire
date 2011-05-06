@@ -631,11 +631,10 @@ class GeminiWafHarvester(InspireHarvester,SingletonPlugin):
             if '/' in url:
                 continue
             urls.append(url)
-        base_url = base_url.split('/')
+        base_url = base_url.rstrip('/').split('/')
         if 'index' in base_url[-1]:
             base_url.pop()
         base_url = '/'.join(base_url)
-        base_url.rstrip('/')
         base_url += '/'
         return [base_url + i for i in urls]
 
