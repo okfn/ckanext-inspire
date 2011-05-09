@@ -16,7 +16,7 @@ import logging
 log = logging.getLogger(__name__)
 
 from pylons import config
-
+from sqlalchemy.exc import InvalidRequestError
 from ckan.model import Session, repo, \
                         Package, Resource, PackageExtra, \
                         setup_default_user_roles
@@ -76,13 +76,23 @@ class InspireHarvester(object):
 
     def _save_gather_error(self,message,job):
         err = HarvestGatherError(message=message,job=job)
-        err.save()
-        log.error(message)
+        try:
+            err.save()
+        except InvalidRequestError:
+            Session.rollback()
+            err.save()
+        finally:
+            log.error(message)
 
     def _save_object_error(self,message,obj,stage=u'Fetch'):
         err = HarvestObjectError(message=message,object=obj,stage=stage)
-        err.save()
-        log.error(message)
+        try:
+            err.save()
+        except InvalidRequestError,e:
+            Session.rollback()
+            err.save()
+        finally:
+            log.error(message)
 
     def _get_content(self, url):
         try:
@@ -111,7 +121,7 @@ class InspireHarvester(object):
             self.import_gemini_object(harvest_object.content)
             return True
         except Exception, e:
-            self._save_object_error('Error importing Gemini document: %r'%e,harvest_object,'Import')
+            self._save_object_error('Error importing Gemini document: %s' % str(e),harvest_object,'Import')
 
     def import_gemini_object(self, gemini_string):
         try:
