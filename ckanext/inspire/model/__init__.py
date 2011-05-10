@@ -299,8 +299,8 @@ class GeminiDocument(MappedXmlDocument):
         GeminiElement(
             name="metadata-date",
             search_paths=[
-                "gmd:dateStamp/gco:Date/text()",
                 "gmd:dateStamp/gco:DateTime/text()",
+                "gmd:dateStamp/gco:Date/text()",
             ],
             multiplicity="1",
         ),

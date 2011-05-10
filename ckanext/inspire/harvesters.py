@@ -10,7 +10,7 @@ TODO: Harvesters for generic INSPIRE CSW servers
 '''
 from lxml import etree
 import urllib2
-
+from datetime import datetime
 
 import logging
 log = logging.getLogger(__name__)
@@ -148,18 +148,39 @@ class InspireHarvester(object):
         '''Create or update a Package based on some content that has
         come from a URL.
         '''
-        # Look for previously harvested document matching Gemini GUID
         package = None
         gemini_document = GeminiDocument(content)
         gemini_values = gemini_document.read_values()
         gemini_guid = gemini_values['guid']
 
+        # Save the metadata reference date in the Harvest Object
+        try:
+            reference_date = datetime.strptime(gemini_values['metadata-date'],'%Y-%m-%d')
+        except ValueError:
+            try:
+                reference_date = datetime.strptime(gemini_values['metadata-date'],'%Y-%m-%dT%H:%M:%S')
+            except:
+                raise Exception('Could not extract reference date for GUID %s (%s)' \
+                        % (gemini_guid,gemini_values['metadata-date']))
+
+        self.obj.reference_date = reference_date
+        self.obj.save()
+
+        # Look for previously harvested document matching Gemini GUID
         harvested_objects = Session.query(HarvestObject) \
                             .filter(HarvestObject.guid==gemini_guid) \
                             .filter(HarvestObject.package!=None) \
-                            .order_by(HarvestObject.created.desc()).all()
+                            .order_by(HarvestObject.reference_date.desc()).all()
 
-        last_harvested_object = harvested_objects[0] if len(harvested_objects) > 0 else None
+        if len(harvested_objects):
+            #SA returns nulls first.
+            last_harvested_object = harvested_objects[0]
+            for ho in harvested_objects:
+                if ho.reference_date:
+                    last_harvested_object = ho
+                    break
+        else:
+            last_harvested_object = None
 
         if last_harvested_object:
             # We've previously harvested this (i.e. it's an update)
@@ -179,23 +200,19 @@ class InspireHarvester(object):
                             gemini_guid,
                         ))
 
-            last_gemini_document = GeminiDocument(last_harvested_object.content)
-            last_gemini_values = last_gemini_document.read_values()
-
             # Use reference date instead of content to determine if the package
             # needs to be updated
-            if last_gemini_values['date-updated'] == gemini_values['date-updated'] and \
-               last_gemini_values['date-released'] == gemini_values['date-released'] and \
-               last_gemini_values['date-created'] == gemini_values['date-created']:
-
+            if last_harvested_object.reference_date < self.obj.reference_date \
+                or last_harvested_object.reference_date is None:
+                log.info('Package for %s needs to be created or updated' % gemini_guid)
+                package = last_harvested_object.package
+            else:
                 if last_harvested_object.content != self.obj.content:
                     raise Exception('The contents of document with GUID %s changed, but the reference date has not been updated' % gemini_guid)
                 else:
                     # The content hasn't changed, no need to update the package
                     log.info('Document with GUID %s unchanged, skipping...' % (gemini_guid))
                 return None
-            log.info('Package for %s needs to be created or updated' % gemini_guid)
-            package = last_harvested_object.package
         else:
             log.info('No package with GEMINI guid %s found, let''s create one' % gemini_guid)
 
