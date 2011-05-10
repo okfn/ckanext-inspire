@@ -15,12 +15,21 @@ log = __import__("logging").getLogger(__name__)
 class ApiController(BaseApiController):
 
     def _get_harvest_object(self,guid):
-        return Session.query(HarvestObject) \
+        obj = Session.query(HarvestObject) \
                         .filter(HarvestObject.guid==guid) \
                         .filter(HarvestObject.package!=None) \
-                        .order_by(HarvestObject.created.desc()) \
+                        .filter(HarvestObject.reference_date!=None) \
+                        .order_by(HarvestObject.reference_date.desc()) \
                         .limit(1).first()
-       
+        if not obj:
+            #Just in case reference_dates have not been yet set up
+            obj = Session.query(HarvestObject) \
+                            .filter(HarvestObject.guid==guid) \
+                            .filter(HarvestObject.package!=None) \
+                            .order_by(HarvestObject.created.desc()) \
+                            .limit(1).first()
+        return obj
+
     def display_xml(self, guid):
         doc = self._get_harvest_object(guid)
 
