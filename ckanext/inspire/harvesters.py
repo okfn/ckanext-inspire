@@ -243,7 +243,6 @@ class InspireHarvester(object):
         for party_name in parties: 
             parties_extra.append('%s (%s)' % (party_name, ', '.join(parties[party_name])))
         extras['responsible-party'] = '; '.join(parties_extra)
-
         package_data = {
             'title': gemini_values['title'],
             'notes': gemini_values['abstract'],
@@ -363,6 +362,11 @@ class InspireHarvester(object):
             resource = Resource(**resource_dict)
             package.resources[:] = []
             package.resources.append(resource)
+
+        # Make sure old extras are removed if updating
+        if len(package.extras):
+            for key in package.extras.keys():
+                del package.extras[key]
 
         for key, value in package_data.get('extras', {}).iteritems():
             extra = PackageExtra(key=key, value=value)
