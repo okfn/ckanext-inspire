@@ -52,6 +52,8 @@ class InspireHarvester(object):
 
     validator=None
 
+    force_import = False
+
     def _is_wms(self,url):
         try:
             s = wms.WebMapService(url)
@@ -203,8 +205,14 @@ class InspireHarvester(object):
             # Use reference date instead of content to determine if the package
             # needs to be updated
             if last_harvested_object.reference_date < self.obj.reference_date \
-                or last_harvested_object.reference_date is None:
-                log.info('Package for %s needs to be created or updated' % gemini_guid)
+                or last_harvested_object.reference_date is None \
+                or self.force_import:
+
+                if self.force_import:
+                    log.info('Import forced for package %s' % gemini_guid)
+                else:
+                    log.info('Package for %s needs to be created or updated' % gemini_guid)
+
                 package = last_harvested_object.package
             else:
                 if last_harvested_object.content != self.obj.content:
