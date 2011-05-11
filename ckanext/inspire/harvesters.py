@@ -10,6 +10,7 @@ TODO: Harvesters for generic INSPIRE CSW servers
 '''
 from lxml import etree
 import urllib2
+from urlparse import urlparse
 from datetime import datetime
 
 import logging
@@ -249,6 +250,11 @@ class InspireHarvester(object):
             extras[name] = gemini_values[name]
 
         extras['licence'] = gemini_values.get('use-constraints', '')
+        if len(extras['licence']):
+            license_url_extracted = self._extract_first_license_url(extras['licence'])
+            if license_url_extracted:
+                extras['licence_url'] = license_url_extracted
+ 
         extras['access_constraints'] = gemini_values.get('limitations-on-public-access','')
         if gemini_values.has_key('temporal-extent-begin'):
             #gemini_values['temporal-extent-begin'].sort()
@@ -337,6 +343,13 @@ class InspireHarvester(object):
                     return name+str(counter)
                 counter = counter + 1
             return None
+
+    def _extract_first_license_url(self,licences):
+        for licence in licences:
+            o = urlparse(licence)
+            if o.scheme and o.netloc:
+                return licence
+        return None
 
     def _create_package_from_data(self, package_data, package = None):
         '''
