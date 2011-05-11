@@ -204,8 +204,8 @@ class InspireHarvester(object):
 
             # Use reference date instead of content to determine if the package
             # needs to be updated
-            if last_harvested_object.reference_date < self.obj.reference_date \
-                or last_harvested_object.reference_date is None \
+            if last_harvested_object.reference_date is None \
+                or last_harvested_object.reference_date < self.obj.reference_date \
                 or self.force_import:
 
                 if self.force_import:
@@ -215,8 +215,9 @@ class InspireHarvester(object):
 
                 package = last_harvested_object.package
             else:
-                if last_harvested_object.content != self.obj.content:
-                    raise Exception('The contents of document with GUID %s changed, but the reference date has not been updated' % gemini_guid)
+                if last_harvested_object.content != self.obj.content and \
+                 last_harvested_object.reference_date == self.obj.reference_date:
+                    raise Exception('The contents of document with GUID %s changed, but the metadata date has not been updated' % gemini_guid)
                 else:
                     # The content hasn't changed, no need to update the package
                     log.info('Document with GUID %s unchanged, skipping...' % (gemini_guid))
