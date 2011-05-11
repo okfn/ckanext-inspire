@@ -158,28 +158,28 @@ class InspireHarvester(object):
 
         # Save the metadata reference date in the Harvest Object
         try:
-            reference_date = datetime.strptime(gemini_values['metadata-date'],'%Y-%m-%d')
+            metadata_modified_date = datetime.strptime(gemini_values['metadata-date'],'%Y-%m-%d')
         except ValueError:
             try:
-                reference_date = datetime.strptime(gemini_values['metadata-date'],'%Y-%m-%dT%H:%M:%S')
+                metadata_modified_date = datetime.strptime(gemini_values['metadata-date'],'%Y-%m-%dT%H:%M:%S')
             except:
                 raise Exception('Could not extract reference date for GUID %s (%s)' \
                         % (gemini_guid,gemini_values['metadata-date']))
 
-        self.obj.reference_date = reference_date
+        self.obj.metadata_modified_date = metadata_modified_date
         self.obj.save()
 
         # Look for previously harvested document matching Gemini GUID
         harvested_objects = Session.query(HarvestObject) \
                             .filter(HarvestObject.guid==gemini_guid) \
                             .filter(HarvestObject.package!=None) \
-                            .order_by(HarvestObject.reference_date.desc()).all()
+                            .order_by(HarvestObject.metadata_modified_date.desc()).all()
 
         if len(harvested_objects):
             #SA returns nulls first.
             last_harvested_object = harvested_objects[0]
             for ho in harvested_objects:
-                if ho.reference_date:
+                if ho.metadata_modified_date:
                     last_harvested_object = ho
                     break
         else:
@@ -203,10 +203,10 @@ class InspireHarvester(object):
                             gemini_guid,
                         ))
 
-            # Use reference date instead of content to determine if the package
+            # Use metadata modified date instead of content to determine if the package
             # needs to be updated
-            if last_harvested_object.reference_date is None \
-                or last_harvested_object.reference_date < self.obj.reference_date \
+            if last_harvested_object.metadata_modified_date is None \
+                or last_harvested_object.metadata_modified_date < self.obj.metadata_modified_date \
                 or self.force_import:
 
                 if self.force_import:
@@ -217,7 +217,7 @@ class InspireHarvester(object):
                 package = last_harvested_object.package
             else:
                 if last_harvested_object.content != self.obj.content and \
-                 last_harvested_object.reference_date == self.obj.reference_date:
+                 last_harvested_object.metadata_modified_date == self.obj.metadata_modified_date:
                     raise Exception('The contents of document with GUID %s changed, but the metadata date has not been updated' % gemini_guid)
                 else:
                     # The content hasn't changed, no need to update the package

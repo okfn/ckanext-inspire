@@ -18,15 +18,15 @@ class ApiController(BaseApiController):
         obj = Session.query(HarvestObject) \
                         .filter(HarvestObject.guid==guid) \
                         .filter(HarvestObject.package!=None) \
-                        .filter(HarvestObject.reference_date!=None) \
-                        .order_by(HarvestObject.reference_date.desc()) \
+                        .filter(HarvestObject.metadata_modified_date!=None) \
+                        .order_by(HarvestObject.metadata_modified_date.desc()) \
                         .limit(1).first()
         if not obj:
-            #Just in case reference_dates have not been yet set up
+            #Just in case metadata_modified_dates have not been yet set up
             obj = Session.query(HarvestObject) \
                             .filter(HarvestObject.guid==guid) \
                             .filter(HarvestObject.package!=None) \
-                            .order_by(HarvestObject.created.desc()) \
+                            .order_by(HarvestObject.gathered.desc()) \
                             .limit(1).first()
         return obj
 
