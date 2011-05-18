@@ -46,8 +46,8 @@ class ApiController(BaseApiController):
             abort(404)
         ## optimise -- read transform only once and compile rather
         ## than at each request
-        with resource_stream("ckanext.csw",
-                             "xml/parslow/gemini2-html-stylesheet.xsl") as style:
+        with resource_stream("ckanext.inspire",
+                             "xml/gemini2-html-stylesheet.xsl") as style:
             style_xml = etree.parse(style)
             transformer = etree.XSLT(style_xml)
         more_than_meets_the_eyes = etree.parse(StringIO(doc.content.encode("utf-8")))
