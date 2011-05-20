@@ -442,8 +442,12 @@ class GeminiHarvester(InspireHarvester,SingletonPlugin):
     '''
     implements(IHarvester)
 
-    def get_type(self):
-        return 'CSW Server'
+    def info(self):
+        return {
+            'name': 'csw',
+            'title': 'CSW Server',
+            'description': 'A server that implements OGC\'s Catalog Service for the Web (CSW) standard'
+            }
 
     def gather_stage(self,harvest_job):
         log.debug('In GeminiHarvester gather_stage')
@@ -529,8 +533,12 @@ class GeminiDocHarvester(InspireHarvester,SingletonPlugin):
 
     implements(IHarvester)
 
-    def get_type(self):
-        return 'Single Document'
+    def info(self):
+        return {
+            'name': 'gemini-single',
+            'title': 'Single GEMINI 2 document',
+            'description': 'A single GEMINI 2.1 document'
+            }
 
     def gather_stage(self,harvest_job):
         log.debug('In GeminiDocHarvester gather_stage')
@@ -581,8 +589,12 @@ class GeminiWafHarvester(InspireHarvester,SingletonPlugin):
 
     implements(IHarvester)
 
-    def get_type(self):
-        return 'Web Accessible Folder (WAF)'
+    def info(self):
+        return {
+            'name': 'gemini-waf',
+            'title': 'Web Accessible Folder (WAF) - GEMINI',
+            'description': 'A Web Accessible Folder (WAF) displaying a list of GEMINI 2.1 documents'
+            }
 
     def gather_stage(self,harvest_job):
         log.debug('In GeminiWafHarvester gather_stage')
