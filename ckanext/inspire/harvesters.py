@@ -187,21 +187,6 @@ class InspireHarvester(object):
 
         if last_harvested_object:
             # We've previously harvested this (i.e. it's an update)
-            if last_harvested_object.source.id != self.obj.source.id:
-                # A 'user' error: there are two or more sources
-                # pointing to the same harvested document
-                if self.obj.source.id is None:
-                    raise Exception('You cannot have an unsaved job source')
-
-                #TODO: Maybe a Warning?
-                if last_harvested_object.source.active:
-                    raise Exception(
-                        'Another active source %s (publisher %s, user %s) is using metadata GUID %s' % (
-                            last_harvested_object.source.url,
-                            last_harvested_object.source.publisher_id,
-                            last_harvested_object.source.user_id,
-                            gemini_guid,
-                        ))
 
             # Use metadata modified date instead of content to determine if the package
             # needs to be updated
