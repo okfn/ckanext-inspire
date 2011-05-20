@@ -491,6 +491,10 @@ class GeminiHarvester(InspireHarvester,SingletonPlugin):
             self._save_gather_error('Error gathering the identifiers from the CSW server [%r]' % e, harvest_job)
             return None
 
+        if len(ids) == 0:
+            self._save_gather_error('No records received from the CSW server', harvest_job)
+            return None
+
         return ids
 
     def fetch_stage(self,harvest_object):
