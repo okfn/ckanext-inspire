@@ -686,6 +686,8 @@ class GeminiWafHarvester(InspireHarvester,SingletonPlugin):
                 continue
             if '#' in url:
                 continue
+            if 'mailto:' in url:
+                continue
             urls.append(url)
         base_url = base_url.rstrip('/').split('/')
         if 'index' in base_url[-1]:
