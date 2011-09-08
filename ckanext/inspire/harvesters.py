@@ -136,7 +136,9 @@ class InspireHarvester(object):
             if self.validator is not None:
                 valid, messages = self.validator.isvalid(xml)
                 if not valid:
-                    self._save_object_error('Validation error %r'%messages,self.obj,'Import')
+                    log.error('Errors found for object with GUID %s:' % self.obj.guid)
+                    out = messages[0] + ':\n' + '\n'.join(messages[1:])
+                    self._save_object_error(out,self.obj,'Import')
 
             unicode_gemini_string = etree.tostring(xml, encoding=unicode, pretty_print=True)
 
@@ -260,11 +262,17 @@ class InspireHarvester(object):
         for party_name in parties: 
             parties_extra.append('%s (%s)' % (party_name, ', '.join(parties[party_name])))
         extras['responsible-party'] = '; '.join(parties_extra)
+
+        tags = []
+        for tag in gemini_values['tags']:
+            tag = tag[:50] if len(tag) > 50 else tag
+            tags.append(tag)
+
         package_data = {
             'title': gemini_values['title'],
             'notes': gemini_values['abstract'],
             'extras': extras,
-            'tags': gemini_values['tags'],
+            'tags': tags,
         }
         if package is None or package.title != gemini_values['title']:
             name = self.gen_new_name(gemini_values['title'])
@@ -422,13 +430,17 @@ class InspireHarvester(object):
             if not gemini_xml:
                 self._save_gather_error('Content is not a valid Gemini document',self.harvest_job)
 
+            if not self.validator:
+                self._get_validator()
+
             if self.validator is not None:
                 valid, messages = self.validator.isvalid(gemini_xml)
                 if not valid:
+                    out = messages[0] + ':\n' + '\n'.join(messages[1:])
                     if url:
-                        self._save_gather_error('Validation error for %s %r'% (url,messages),self.harvest_job)
+                        self._save_gather_error('Validation error for %s %r'% (url,out),self.harvest_job)
                     else:
-                        self._save_gather_error('Validation error for %r'%messages,self.harvest_job)
+                        self._save_gather_error('Validation error. %r'%out,self.harvest_job)
 
             gemini_string = etree.tostring(gemini_xml)
             gemini_document = GeminiDocument(gemini_string)
@@ -550,6 +562,8 @@ class GeminiDocHarvester(InspireHarvester,SingletonPlugin):
     def gather_stage(self,harvest_job):
         log.debug('In GeminiDocHarvester gather_stage')
 
+        self.harvest_job = harvest_job
+
         # Get source URL
         url = harvest_job.source.url
 
@@ -560,10 +574,9 @@ class GeminiDocHarvester(InspireHarvester,SingletonPlugin):
             self._save_gather_error('Unable to get content for URL: %s: %r' % \
                                         (url, e),harvest_job)
             return None
-
         try:
             # We need to extract the guid to pass it to the next stage
-            gemini_string, gemini_guid = self.get_gemini_string_and_guid(content)
+            gemini_string, gemini_guid = self.get_gemini_string_and_guid(content,url)
             
             if gemini_guid:
                 # Create a new HarvestObject for this identifier
