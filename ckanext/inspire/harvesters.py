@@ -233,6 +233,9 @@ class InspireHarvester(object):
             'metadata-language', # Language
             'metadata-date', # Released
             'coupled-resource',
+            'contact-email',
+            'frequency-of-update',
+            'spatial-data-service-type',
         ]:
             extras[name] = gemini_values[name]
 

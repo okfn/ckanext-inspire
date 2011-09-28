@@ -414,7 +414,7 @@ class GeminiDocument(MappedXmlDocument):
         GeminiElement(
             name="spatial-data-service-type",
             search_paths=[
-                "gmd:identificationInfo/srv:SV_ServiceIdentification/srv:serviceType/gco:LocalName",
+                "gmd:identificationInfo/srv:SV_ServiceIdentification/srv:serviceType/gco:LocalName/text()",
             ],
             multiplicity="0..1",
         ),
