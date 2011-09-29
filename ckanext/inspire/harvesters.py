@@ -12,17 +12,25 @@ from lxml import etree
 import urllib2
 from urlparse import urlparse
 from datetime import datetime
+from string import Template
+from numbers import Number
 
 import logging
 log = logging.getLogger(__name__)
 
 from pylons import config
 from sqlalchemy.exc import InvalidRequestError
+
+from ckan import model
 from ckan.model import Session, repo, \
                         Package, Resource, PackageExtra, \
-                        setup_default_user_roles
+                        setup_default_user_roles, make_uuid
 from ckan.lib.munge import munge_title_to_name
 from ckan.plugins.core import SingletonPlugin, implements
+from ckan.lib.helpers import json
+from ckan.logic import get_action, ValidationError
+from ckan.logic.schema import default_package_schema, default_tags_schema
+from ckan.lib.navl.validators import not_empty
 
 from ckanext.harvest.interfaces import IHarvester
 from ckanext.harvest.model import HarvestObject, HarvestGatherError, \
@@ -31,13 +39,6 @@ from ckanext.harvest.model import HarvestObject, HarvestGatherError, \
 from ckanext.inspire.model import GeminiDocument
 
 from owslib import wms
-
-try:
-    from ckanext.spatial.lib import save_extent
-    save_extents = True
-except ImportError:
-    log.error('No spatial support installed -- install ckanext-spatial if you want to support spatial queries')
-    save_extents = False
 
 try:
     from ckanext.csw.services import CswService
@@ -54,6 +55,10 @@ class InspireHarvester(object):
     validator=None
 
     force_import = False
+
+    extent_template = Template('''
+    {"type":"Polygon","coordinates":[[[$minx, $miny],[$minx, $maxy], [$maxx, $maxy], [$maxx, $miny], [$minx, $miny]]]}
+    ''')
 
     def _is_wms(self,url):
         try:
@@ -244,7 +249,7 @@ class InspireHarvester(object):
             license_url_extracted = self._extract_first_license_url(extras['licence'])
             if license_url_extracted:
                 extras['licence_url'] = license_url_extracted
- 
+
         extras['access_constraints'] = gemini_values.get('limitations-on-public-access','')
         if gemini_values.has_key('temporal-extent-begin'):
             #gemini_values['temporal-extent-begin'].sort()
@@ -262,37 +267,50 @@ class InspireHarvester(object):
             else:
                 parties[responsible_party['organisation-name']] = [responsible_party['role']]
         parties_extra = []
-        for party_name in parties: 
+        for party_name in parties:
             parties_extra.append('%s (%s)' % (party_name, ', '.join(parties[party_name])))
         extras['responsible-party'] = '; '.join(parties_extra)
+
+        # Construct a GeoJSON extent so ckanext-spatial can register the extent geometry
+        extent_string = self.extent_template.substitute(
+                minx = extras['bbox-east-long'],
+                miny = extras['bbox-south-lat'],
+                maxx = extras['bbox-west-long'],
+                maxy = extras['bbox-north-lat']
+                )
+
+        extras['spatial'] = extent_string.strip()
 
         tags = []
         for tag in gemini_values['tags']:
             tag = tag[:50] if len(tag) > 50 else tag
-            tags.append(tag)
+            tags.append({'name':tag})
 
-        package_data = {
+        package_dict = {
             'title': gemini_values['title'],
             'notes': gemini_values['abstract'],
-            'extras': extras,
             'tags': tags,
         }
+
         if package is None or package.title != gemini_values['title']:
             name = self.gen_new_name(gemini_values['title'])
             if not name:
                 name = self.gen_new_name(str(gemini_guid))
             if not name:
                 raise Exception('Could not generate a unique name from the title or the GUID. Please choose a more unique title.')
-            package_data['name'] = name
+            package_dict['name'] = name
+        else:
+            package_dict['name'] = package.name
+
         resource_locator = gemini_values.get('resource-locator', []) and gemini_values['resource-locator'][0].get('url') or ''
 
         if resource_locator:
             if extras['resource-type'] == 'service':
                 _format = 'WMS' if self._is_wms(resource_locator) else 'Unverified'
-            else: 
+            else:
                 _format = 'Unverified'
 
-            package_data['resources'] = [
+            package_dict['resources'] = [
                 {
                     'url': resource_locator,
                     'description': 'Resource locator',
@@ -300,25 +318,27 @@ class InspireHarvester(object):
                 },
             ]
 
+        extras_as_dict = []
+        for key,value in extras.iteritems():
+            if isinstance(value,(basestring,Number)):
+                extras_as_dict.append({'key':key,'value':value})
+            else:
+                extras_as_dict.append({'key':key,'value':json.dumps(value)})
+
+        package_dict['extras'] = extras_as_dict
+
         if package == None:
             # Create new package from data.
-            package = self._create_package_from_data(package_data)
+            package = self._create_package_from_data(package_dict)
             log.info('Created new package ID %s with GEMINI guid %s', package.id, gemini_guid)
+
+            # Set reference to package in the HarvestObject
+            self.obj.package = package
+            self.obj.save()
+
         else:
-            package = self._create_package_from_data(package_data, package = package)
+            package = self._create_package_from_data(package_dict, package = package)
             log.info('Updated existing package ID %s with existing GEMINI guid %s', package.id, gemini_guid)
-
-        # Set reference to package in the HarvestObject
-        self.obj.package = package
-        self.obj.save()
-
-        # Save spatial extent
-        if package.extras.get('bbox-east-long') and save_extents:
-            try:
-                save_extent(package)
-            except:
-                log.error('There was an error saving the package extent. Have you set up the package_extent table in the DB?')
-                raise
 
         assert gemini_guid == package.harvest_objects[0].guid
         return package
@@ -347,77 +367,61 @@ class InspireHarvester(object):
                 return licence
         return None
 
-    def _create_package_from_data(self, package_data, package = None):
+    def _create_package_from_data(self, package_dict, package = None):
         '''
-        {'extras': {'INSPIRE': 'True',
-                    'bbox-east-long': '-3.12442',
-                    'bbox-north-lat': '54.218407',
-                    'bbox-south-lat': '54.039634',
-                    'bbox-west-long': '-3.32485',
-                    'constraint': 'conditions unknown; (e) intellectual property rights;',
-                    'dataset-reference-date': [{'type': 'creation',
-                                                'value': '2008-10-10'},
-                                               {'type': 'revision',
-                                                'value': '2009-10-08'}],
-                    'guid': '00a743bf-cca4-4c19-a8e5-e64f7edbcadd',
-                    'metadata-date': '2009-10-16',
-                    'metadata-language': 'eng',
-                    'published_by': 0,
-                    'resource-type': 'dataset',
-                    'spatial-reference-system': '<gmd:MD_ReferenceSystem xmlns:gmd="http://www.isotc211.org/2005/gmd" xmlns:gco="http://www.isotc211.org/2005/gco" xmlns:gml="http://www.opengis.net/gml/3.2" xmlns:xlink="http://www.w3.org/1999/xlink"><gmd:referenceSystemIdentifier><gmd:RS_Identifier><gmd:code><gco:CharacterString>urn:ogc:def:crs:EPSG::27700</gco:CharacterString></gmd:code></gmd:RS_Identifier></gmd:referenceSystemIdentifier></gmd:MD_ReferenceSystem>',
-                    'temporal_coverage-from': '1977-03-10T11:45:30',
-                    'temporal_coverage-to': '2005-01-15T09:10:00'},
-         'name': 'council-owned-litter-bins',
+        {'name': 'council-owned-litter-bins',
          'notes': 'Location of Council owned litter bins within Borough.',
          'resources': [{'description': 'Resource locator',
                         'format': 'Unverified',
                         'url': 'http://www.barrowbc.gov.uk'}],
-         'tags': ['Utility and governmental services'],
-         'title': 'Council Owned Litter Bins'}
+         'tags': [{'name':'Utility and governmental services'}],
+         'title': 'Council Owned Litter Bins',
+         'extras': [{'key':'INSPIRE','value':'True'},
+                    {'key':'bbox-east-long','value': '-3.12442'},
+                    {'key':'bbox-north-lat','value': '54.218407'},
+                    {'key':'bbox-south-lat','value': '54.039634'},
+                    {'key':'bbox-west-long','value': '-3.32485'},
+                    # etc.
+                    ]
+        }
         '''
 
+        # The default package schema does not like Upper case tags
+        tag_schema = default_tags_schema()
+        package_schema = default_package_schema()
+
+        tag_schema['name'] = [not_empty,unicode]
+        package_schema['tags'] = tag_schema
+
+        # TODO: user
+        context = {'model':model,
+                   'session':Session,
+                   'user':'harvest',
+                   'schema':package_schema,
+                   'extras_as_string':True}
+
         if not package:
-            package = Package()
+            # We need to explicitly provide a package ID, otherwise ckanext-spatial
+            # won't be be able to link the extent to the package.
+            package_dict['id'] = make_uuid()
+            package_schema['id'] = [unicode]
 
-        rev = repo.new_revision()
+            action_function = get_action('package_create')
+        else:
+            action_function = get_action('package_update')
+            package_dict['id'] = package.id
 
-        relationship_attr = ['extras', 'resources', 'tags']
+        try:
+            package_dict = action_function(context, package_dict)
+        except ValidationError,e:
+            import pdb; pdb.set_trace()
+            raise Exception('Validation Error: %s' % str(e.error_summary))
+        except Exception, e:
+            import pdb; pdb.set_trace()
+            raise e
 
-        package_properties = {}
-        for key, value in package_data.iteritems():
-            if key not in relationship_attr:
-                setattr(package, key, value)
-
-        tags = package_data.get('tags', [])
-
-        for tag in tags:
-            package.add_tag_by_name(tag, autoflush=False)
-
-        for resource_dict in package_data.get('resources', []):
-            resource = Resource(**resource_dict)
-            package.resources[:] = []
-            package.resources.append(resource)
-
-        # Make sure old extras are removed if updating
-        if len(package.extras):
-            for key in package.extras.keys():
-                del package.extras[key]
-
-        for key, value in package_data.get('extras', {}).iteritems():
-            extra = PackageExtra(key=key, value=value)
-            package._extras[key] = extra
-
-        Session.add(package)
-        Session.flush()
-
-        setup_default_user_roles(package, [])
-
-        rev.message = 'Harvester: Created package %s' % package.id
-
-        Session.add(rev)
-        Session.commit()
-
-        return package
+        # Return the actual package object
+        return context['package']
 
     def get_gemini_string_and_guid(self,content,url=None):
         try:
@@ -531,7 +535,7 @@ class GeminiHarvester(InspireHarvester,SingletonPlugin):
         except Exception, e:
             self._save_object_error('Error getting the CSW record with GUID %s' % identifier,harvest_object)
             return False
-            
+
         if record is None:
             self._save_object_error('Empty record for GUID %s' % identifier,harvest_object)
             return False
@@ -580,7 +584,7 @@ class GeminiDocHarvester(InspireHarvester,SingletonPlugin):
         try:
             # We need to extract the guid to pass it to the next stage
             gemini_string, gemini_guid = self.get_gemini_string_and_guid(content,url)
-            
+
             if gemini_guid:
                 # Create a new HarvestObject for this identifier
                 # Generally the content will be set in the fetch stage, but as we alredy
