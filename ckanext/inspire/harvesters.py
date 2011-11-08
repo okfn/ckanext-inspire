@@ -414,10 +414,8 @@ class InspireHarvester(object):
         try:
             package_dict = action_function(context, package_dict)
         except ValidationError,e:
-            import pdb; pdb.set_trace()
             raise Exception('Validation Error: %s' % str(e.error_summary))
         except Exception, e:
-            import pdb; pdb.set_trace()
             raise e
 
         # Return the actual package object
