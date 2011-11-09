@@ -220,7 +220,8 @@ class InspireHarvester(object):
 
         extras = {
             'published_by': int(self.obj.source.publisher_id or 0),
-            'INSPIRE': 'True'
+            'INSPIRE': 'True',
+            'harvest_object_id': self.obj.id
         }
 
         # Just add some of the metadata as extras, not the whole lot
