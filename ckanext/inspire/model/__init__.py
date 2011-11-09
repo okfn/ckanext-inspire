@@ -191,7 +191,28 @@ class GeminiResourceLocator(GeminiElement):
             ],
             multiplicity="0..1",
         ),
-    ]
+        GeminiElement(
+            name="name",
+            search_paths=[
+                "gmd:name/gco:CharacterString/text()",
+            ],
+            multiplicity="0..1",
+        ),
+        GeminiElement(
+            name="description",
+            search_paths=[
+                "gmd:description/gco:CharacterString/text()",
+            ],
+            multiplicity="0..1",
+        ),
+        GeminiElement(
+            name="protocol",
+            search_paths=[
+                "gmd:protocol/gco:CharacterString/text()",
+            ],
+            multiplicity="0..1",
+        ),
+        ]
 
 
 class GeminiDataFormat(GeminiElement):

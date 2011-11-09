@@ -220,7 +220,7 @@ class InspireHarvester(object):
 
         extras = {
             'published_by': int(self.obj.source.publisher_id or 0),
-            'INSPIRE': 'True',
+            'INSPIRE': 'True'
         }
 
         # Just add some of the metadata as extras, not the whole lot
@@ -290,6 +290,7 @@ class InspireHarvester(object):
             'title': gemini_values['title'],
             'notes': gemini_values['abstract'],
             'tags': tags,
+            'resources':[]
         }
 
         if package is None or package.title != gemini_values['title']:
@@ -302,22 +303,42 @@ class InspireHarvester(object):
         else:
             package_dict['name'] = package.name
 
-        resource_locator = gemini_values.get('resource-locator', []) and gemini_values['resource-locator'][0].get('url') or ''
+        resource_locators = gemini_values.get('resource-locator', [])
+        
+        if len(resource_locators):
+            for resource_locator in resource_locators:
+                url = resource_locator.get('url','')
+                if url:
+                    resource_format = ''
+                    resource = {}
+                    if extras['resource-type'] == 'service':
+                        # Check if the service is a view service
+                        test_url = url.split('?')[0] if '?' in url else url
+                        if self._is_wms(test_url):
+                            resource['verified'] = True
+                            resource['verified_date'] = datetime.now().isoformat()
+                            resource_format = 'WMS'
+                    resource.update(
+                        {
+                            'url': url,
+                            'name': resource_locator.get('name',''),
+                            'description': resource_locator.get('description') if resource_locator.get('description') else 'Resource locator',
+                            'format': resource_format or 'Unverified',
+                            'resource_locator_protocol': resource_locator.get('protocol',''),
+                            'resource_locator_function':resource_locator.get('function','')
 
-        if resource_locator:
-            if extras['resource-type'] == 'service':
-                _format = 'WMS' if self._is_wms(resource_locator) else 'Unverified'
+                        })
+                    package_dict['resources'].append(resource)
+
+            # Guess the best view service to use in WMS preview
+            verified_view_resources = [r for r in package_dict['resources'] if 'verified' in r and r['format'] == 'WMS']
+            if len(verified_view_resources):
+                verified_view_resources[0]['ckan_recommended_wms_preview'] = True
             else:
-                _format = 'Unverified'
-
-            package_dict['resources'] = [
-                {
-                    'url': resource_locator,
-                    'description': 'Resource locator',
-                    'format': _format,
-                },
-            ]
-
+                view_resources = [r for r in package_dict['resources'] if r['format'] == 'WMS']
+                if len(view_resources):
+                    view_resources[0]['ckan_recommended_wms_preview'] = True
+        
         extras_as_dict = []
         for key,value in extras.iteritems():
             if isinstance(value,(basestring,Number)):
