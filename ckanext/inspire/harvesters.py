@@ -14,7 +14,7 @@ from urlparse import urlparse
 from datetime import datetime
 from string import Template
 from numbers import Number
-
+import sys
 import logging
 log = logging.getLogger(__name__)
 
@@ -48,6 +48,15 @@ except ImportError:
     log.error('No CSW support installed -- install ckanext-csw')
     raise
 
+import cgitb
+import warnings
+def text_traceback():
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        res = 'the original traceback:'.join(
+            cgitb.text(sys.exc_info()).split('the original traceback:')[1:]
+        ).strip()
+    return res
 
 class InspireHarvester(object):
     csw=None
@@ -64,8 +73,8 @@ class InspireHarvester(object):
         try:
             s = wms.WebMapService(url)
             return isinstance(s.contents, dict) and s.contents != {}
-        except:
-            pass
+        except Exception, e:
+            log.error('WMS check for %s failed with exception: %s'%(url, str(e)))
         return False
 
     def _setup_csw_server(self,url):
@@ -103,12 +112,9 @@ class InspireHarvester(object):
             log.error(message)
 
     def _get_content(self, url):
-        try:
-            url = url.replace(' ','%20')
-            http_response = urllib2.urlopen(url)
-            return http_response.read()
-        except Exception, e:
-            raise e
+        url = url.replace(' ','%20')
+        http_response = urllib2.urlopen(url)
+        return http_response.read()
 
 
     # All three harvesters share the same import stage
@@ -125,34 +131,32 @@ class InspireHarvester(object):
             self._save_object_error('Empty content for object %s' % harvest_object.id,harvest_object,'Import')
             return False
         try:
-
             self.import_gemini_object(harvest_object.content)
             return True
         except Exception, e:
-            self._save_object_error('Error importing Gemini document: %s' % str(e),harvest_object,'Import')
+            log.error(text_traceback())
+            if not str(e).strip():
+                self._save_object_error('Error importing Gemini document.', harvest_object, 'Import')
+            else:
+                self._save_object_error('Error importing Gemini document: %s' % str(e), harvest_object, 'Import')
 
     def import_gemini_object(self, gemini_string):
-        try:
-            xml = etree.fromstring(gemini_string)
+        xml = etree.fromstring(gemini_string)
 
-            if not self.validator:
-                self._get_validator()
+        if not self.validator:
+            self._get_validator()
 
-            if self.validator is not None:
-                valid, messages = self.validator.isvalid(xml)
-                if not valid:
-                    log.error('Errors found for object with GUID %s:' % self.obj.guid)
-                    out = messages[0] + ':\n' + '\n'.join(messages[1:])
-                    self._save_object_error(out,self.obj,'Import')
+        if self.validator is not None:
+            valid, messages = self.validator.isvalid(xml)
+            if not valid:
+                log.error('Errors found for object with GUID %s:' % self.obj.guid)
+                out = messages[0] + ':\n' + '\n'.join(messages[1:])
+                self._save_object_error(out,self.obj,'Import')
 
-            unicode_gemini_string = etree.tostring(xml, encoding=unicode, pretty_print=True)
+        unicode_gemini_string = etree.tostring(xml, encoding=unicode, pretty_print=True)
 
-            package = self.write_package_from_gemini_string(unicode_gemini_string)
+        package = self.write_package_from_gemini_string(unicode_gemini_string)
 
-        except Exception, e:
-            raise
-        else:
-            pass
 
     def write_package_from_gemini_string(self, content):
         '''Create or update a Package based on some content that has
@@ -437,46 +441,41 @@ class InspireHarvester(object):
             package_dict = action_function(context, package_dict)
         except ValidationError,e:
             raise Exception('Validation Error: %s' % str(e.error_summary))
-        except Exception, e:
-            raise e
 
         # Return the actual package object
         return context['package']
 
     def get_gemini_string_and_guid(self,content,url=None):
-        try:
-            xml = etree.fromstring(content)
+        xml = etree.fromstring(content)
 
-            # The validator and GeminiDocument don't like the container
-            metadata_tag = '{http://www.isotc211.org/2005/gmd}MD_Metadata'
-            if xml.tag == metadata_tag:
-                gemini_xml = xml
-            else:
-                gemini_xml = xml.find(metadata_tag)
+        # The validator and GeminiDocument don't like the container
+        metadata_tag = '{http://www.isotc211.org/2005/gmd}MD_Metadata'
+        if xml.tag == metadata_tag:
+            gemini_xml = xml
+        else:
+            gemini_xml = xml.find(metadata_tag)
 
-            if not gemini_xml:
-                self._save_gather_error('Content is not a valid Gemini document',self.harvest_job)
+        if not gemini_xml:
+            self._save_gather_error('Content is not a valid Gemini document',self.harvest_job)
 
-            if not self.validator:
-                self._get_validator()
+        if not self.validator:
+            self._get_validator()
 
-            if self.validator is not None:
-                valid, messages = self.validator.isvalid(gemini_xml)
-                if not valid:
-                    out = messages[0] + ':\n' + '\n'.join(messages[1:])
-                    if url:
-                        self._save_gather_error('Validation error for %s %r'% (url,out),self.harvest_job)
-                    else:
-                        self._save_gather_error('Validation error. %r'%out,self.harvest_job)
+        if self.validator is not None:
+            valid, messages = self.validator.isvalid(gemini_xml)
+            if not valid:
+                out = messages[0] + ':\n' + '\n'.join(messages[1:])
+                if url:
+                    self._save_gather_error('Validation error for %s %r'% (url,out),self.harvest_job)
+                else:
+                    self._save_gather_error('Validation error. %r'%out,self.harvest_job)
 
-            gemini_string = etree.tostring(gemini_xml)
-            gemini_document = GeminiDocument(gemini_string)
-            gemini_values = gemini_document.read_values()
-            gemini_guid = gemini_values['guid']
+        gemini_string = etree.tostring(gemini_xml)
+        gemini_document = GeminiDocument(gemini_string)
+        gemini_values = gemini_document.read_values()
+        gemini_guid = gemini_values['guid']
 
-            return gemini_string, gemini_guid
-        except Exception,e:
-            raise e
+        return gemini_string, gemini_guid
 
 class GeminiHarvester(InspireHarvester,SingletonPlugin):
     '''
