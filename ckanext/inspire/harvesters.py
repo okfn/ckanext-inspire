@@ -358,13 +358,13 @@ class InspireHarvester(object):
             package = self._create_package_from_data(package_dict)
             log.info('Created new package ID %s with GEMINI guid %s', package.id, gemini_guid)
 
-            # Set reference to package in the HarvestObject
-            self.obj.package = package
-            self.obj.save()
-
         else:
             package = self._create_package_from_data(package_dict, package = package)
             log.info('Updated existing package ID %s with existing GEMINI guid %s', package.id, gemini_guid)
+        
+        # Set reference to package in the HarvestObject
+        self.obj.package = package
+        self.obj.save()
 
         assert gemini_guid == package.harvest_objects[0].guid
         return package
