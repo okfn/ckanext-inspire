@@ -356,17 +356,21 @@ class InspireHarvester(object):
         if package == None:
             # Create new package from data.
             package = self._create_package_from_data(package_dict)
-            log.info('Created new package ID %s with GEMINI guid %s', package.id, gemini_guid)
+            log.info('Created new package ID %s with GEMINI guid %s', package['id'], gemini_guid)
 
         else:
             package = self._create_package_from_data(package_dict, package = package)
-            log.info('Updated existing package ID %s with existing GEMINI guid %s', package.id, gemini_guid)
+            log.info('Updated existing package ID %s with existing GEMINI guid %s', package['id'], gemini_guid)
         
         # Set reference to package in the HarvestObject
-        self.obj.package = package
-        self.obj.save()
-
-        assert gemini_guid == package.harvest_objects[0].guid
+        # (only for newly created objects, if we are reimporting the reference
+        # is alredy set)
+        if not self.obj.package_id or self.obj.package_id != package['id']:
+            self.obj.package_id = package['id']
+            self.obj.save()
+        
+        assert gemini_guid == [e['value'] for e in package['extras'] if e['key'] == 'guid'][0]
+        assert self.obj.id == [e['value'] for e in package['extras'] if e['key'] ==  'harvest_object_id'][0]
         return package
 
     def gen_new_name(self,title):
@@ -442,8 +446,7 @@ class InspireHarvester(object):
         except ValidationError,e:
             raise Exception('Validation Error: %s' % str(e.error_summary))
 
-        # Return the actual package object
-        return context['package']
+        return package_dict
 
     def get_gemini_string_and_guid(self,content,url=None):
         xml = etree.fromstring(content)
