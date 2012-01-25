@@ -182,8 +182,10 @@ class InspireHarvester(object):
 
         # Look for previously harvested document matching Gemini GUID
         harvested_objects = Session.query(HarvestObject) \
+                            .join(Package) \
                             .filter(HarvestObject.guid==gemini_guid) \
                             .filter(HarvestObject.package!=None) \
+                            .filter(Package.state==u'active') \
                             .order_by(HarvestObject.metadata_modified_date.desc()).all()
 
         if len(harvested_objects):
