@@ -226,7 +226,7 @@ class InspireHarvester(object):
 
         extras = {
             'published_by': int(self.obj.source.publisher_id or 0),
-            'INSPIRE': 'True',
+            'UKLP': 'True',
             'harvest_object_id': self.obj.id
         }
 
@@ -330,7 +330,7 @@ class InspireHarvester(object):
                             'url': url,
                             'name': resource_locator.get('name',''),
                             'description': resource_locator.get('description') if resource_locator.get('description') else 'Resource locator',
-                            'format': resource_format or 'Unverified',
+                            'format': resource_format or None,
                             'resource_locator_protocol': resource_locator.get('protocol',''),
                             'resource_locator_function':resource_locator.get('function','')
 
