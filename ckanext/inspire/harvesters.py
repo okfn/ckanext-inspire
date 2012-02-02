@@ -19,6 +19,7 @@ import logging
 log = logging.getLogger(__name__)
 
 from pylons import config
+from sqlalchemy.sql import update,and_, bindparam
 from sqlalchemy.exc import InvalidRequestError
 
 from ckan import model
@@ -359,20 +360,33 @@ class InspireHarvester(object):
             # Create new package from data.
             package = self._create_package_from_data(package_dict)
             log.info('Created new package ID %s with GEMINI guid %s', package['id'], gemini_guid)
-
         else:
             package = self._create_package_from_data(package_dict, package = package)
             log.info('Updated existing package ID %s with existing GEMINI guid %s', package['id'], gemini_guid)
         
-        # Set reference to package in the HarvestObject
-        # (only for newly created objects, if we are reimporting the reference
-        # is alredy set)
-        if not self.obj.package_id or self.obj.package_id != package['id']:
+        # Flag the other objects of this source as not current anymore
+        from ckanext.harvest.model import harvest_object_table
+        u = update(harvest_object_table) \
+                .where(harvest_object_table.c.package_id==bindparam('b_package_id')) \
+                .values(current=False)
+        Session.execute(u, params={'b_package_id':package['id']})
+        Session.commit()
+
+        # Remove current objects from session, otherwise the
+        # import paster command fails
+        Session.remove()
+
+        # Set reference to package in the HarvestObject and flag it as
+        # the current one
+        if not self.obj.package_id:
             self.obj.package_id = package['id']
-            self.obj.save()
+
+        self.obj.current = True
+        self.obj.save()
         
         assert gemini_guid == [e['value'] for e in package['extras'] if e['key'] == 'guid'][0]
         assert self.obj.id == [e['value'] for e in package['extras'] if e['key'] ==  'harvest_object_id'][0]
+
         return package
 
     def gen_new_name(self,title):
