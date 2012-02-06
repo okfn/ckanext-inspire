@@ -206,7 +206,9 @@ class InspireHarvester(object):
             # needs to be updated
             if last_harvested_object.metadata_modified_date is None \
                 or last_harvested_object.metadata_modified_date < self.obj.metadata_modified_date \
-                or self.force_import:
+                or self.force_import \
+                or (last_harvested_object.metadata_modified_date == self.obj.metadata_modified_date and
+                    last_harvested_object.source.active is False):
 
                 if self.force_import:
                     log.info('Import forced for package %s' % gemini_guid)
@@ -312,7 +314,7 @@ class InspireHarvester(object):
             package_dict['name'] = package.name
 
         resource_locators = gemini_values.get('resource-locator', [])
-        
+
         if len(resource_locators):
             for resource_locator in resource_locators:
                 url = resource_locator.get('url','')
@@ -346,7 +348,7 @@ class InspireHarvester(object):
                 view_resources = [r for r in package_dict['resources'] if r['format'] == 'WMS']
                 if len(view_resources):
                     view_resources[0]['ckan_recommended_wms_preview'] = True
-        
+
         extras_as_dict = []
         for key,value in extras.iteritems():
             if isinstance(value,(basestring,Number)):
@@ -363,7 +365,7 @@ class InspireHarvester(object):
         else:
             package = self._create_package_from_data(package_dict, package = package)
             log.info('Updated existing package ID %s with existing GEMINI guid %s', package['id'], gemini_guid)
-        
+
         # Flag the other objects of this source as not current anymore
         from ckanext.harvest.model import harvest_object_table
         u = update(harvest_object_table) \
@@ -383,7 +385,7 @@ class InspireHarvester(object):
 
         self.obj.current = True
         self.obj.save()
-        
+
         assert gemini_guid == [e['value'] for e in package['extras'] if e['key'] == 'guid'][0]
         assert self.obj.id == [e['value'] for e in package['extras'] if e['key'] ==  'harvest_object_id'][0]
 
