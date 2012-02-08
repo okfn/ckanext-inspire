@@ -476,7 +476,7 @@ class InspireHarvester(object):
         else:
             gemini_xml = xml.find(metadata_tag)
 
-        if not gemini_xml:
+        if gemini_xml is None:
             self._save_gather_error('Content is not a valid Gemini document',self.harvest_job)
 
         if not self.validator:
