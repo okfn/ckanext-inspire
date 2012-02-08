@@ -1,0 +1,468 @@
+<?xml version='1.0' encoding='ASCII'?>
+<MD_Metadata
+     xmlns="http://www.isotc211.org/2005/gmd"
+     xmlns:gco="http://www.isotc211.org/2005/gco"
+     xmlns:gml="http://www.opengis.net/gml/3.2"
+     xmlns:ns1="http://www.isotc211.org/2005/gmd"
+     xmlns:srv="http://www.isotc211.org/2005/srv"
+     xmlns:xlink="http://www.w3.org/1999/xlink"
+     xmlns:csw="http://www.opengis.net/cat/csw/2.0.2">
+  <fileIdentifier xmlns:gmd="http://www.isotc211.org/2005/gmd">
+    <gco:CharacterString>73a2683d-081c-473c-8201-4c6578d9d19a</gco:CharacterString>
+  </fileIdentifier>
+  <language xmlns:gmd="http://www.isotc211.org/2005/gmd">
+    <LanguageCode codeList="http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/Codelist/ML_gmxCodelists.xml#LanguageCode" codeListValue="eng"/>
+  </language>
+  <characterSet xmlns:gmd="http://www.isotc211.org/2005/gmd">
+    <MD_CharacterSetCode codeList="http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/Codelist/ML_gmxCodelists.xml#MD_CharacterSetCode" codeListValue="utf8"/>
+  </characterSet>
+  <hierarchyLevel xmlns:gmd="http://www.isotc211.org/2005/gmd">
+    <MD_ScopeCode codeList="http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/Codelist/ML_gmxCodelists.xml#MD_ScopeCode" codeListValue="service"/>
+  </hierarchyLevel>
+  <contact xmlns:gmd="http://www.isotc211.org/2005/gmd">
+    <CI_ResponsibleParty>
+      <individualName>
+        <gco:CharacterString>Simon Smart</gco:CharacterString>
+      </individualName>
+      <organisationName>
+        <gco:CharacterString>Centre for Ecology &amp; Hydrology</gco:CharacterString>
+      </organisationName>
+      <contactInfo>
+        <CI_Contact>
+          <address>
+            <CI_Address>
+              <deliveryPoint>
+                <gco:CharacterString>Lancaster Environment Centre,  Library Avenue, Bailrigg</gco:CharacterString>
+              </deliveryPoint>
+              <city>
+                <gco:CharacterString>Lancaster</gco:CharacterString>
+              </city>
+              <administrativeArea>
+                <gco:CharacterString>Lancashire</gco:CharacterString>
+              </administrativeArea>
+              <postalCode>
+                <gco:CharacterString>LA1 4AP</gco:CharacterString>
+              </postalCode>
+              <country>
+                <gco:CharacterString>United Kingdom</gco:CharacterString>
+              </country>
+              <electronicMailAddress>
+                <gco:CharacterString>enquiries@ceh.ac.uk</gco:CharacterString>
+              </electronicMailAddress>
+            </CI_Address>
+          </address>
+        </CI_Contact>
+      </contactInfo>
+      <role>
+        <CI_RoleCode codeList="http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/Codelist/ML_gmxCodelists.xml#CI_RoleCode" codeListValue="pointOfContact">pointOfContact</CI_RoleCode>
+      </role>
+    </CI_ResponsibleParty>
+
+  </contact>
+  <dateStamp>
+    <gco:Date>2011-12-13</gco:Date>
+  </dateStamp>
+  <metadataStandardName xmlns:gmd="http://www.isotc211.org/2005/gmd">
+    <gco:CharacterString>NERC profile of ISO19115:2003</gco:CharacterString>
+  </metadataStandardName>
+  <metadataStandardVersion xmlns:gmd="http://www.isotc211.org/2005/gmd">
+    <gco:CharacterString>1.0</gco:CharacterString>
+  </metadataStandardVersion>
+  <referenceSystemInfo xmlns:gmd="http://www.isotc211.org/2005/gmd">
+    <MD_ReferenceSystem>
+      <referenceSystemIdentifier>
+        <RS_Identifier>
+          <code>
+            <gco:CharacterString>CRS:84</gco:CharacterString>
+          </code>
+          <codeSpace>
+            <gco:CharacterString>urn:ogc:def:crs:EPSG</gco:CharacterString>
+          </codeSpace>
+          <version>
+            <gco:CharacterString>6.11.2</gco:CharacterString>
+          </version>
+        </RS_Identifier>
+      </referenceSystemIdentifier>
+    </MD_ReferenceSystem>
+  </referenceSystemInfo>
+  <identificationInfo>
+    <srv:SV_ServiceIdentification>
+      <citation>
+        <CI_Citation>
+          <title>
+            <gco:CharacterString>Woodland Survey Sites</gco:CharacterString>
+          </title>
+          <date xmlns:gmd="http://www.isotc211.org/2005/gmd">
+            <CI_Date>
+              <date>
+                <gco:Date>2007-05-01</gco:Date>
+              </date>
+              <dateType>
+                <CI_DateTypeCode codeList="http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/Codelist/ML_gmxCodelists.xml#CI_DateTypeCode" codeListValue="creation"/>
+              </dateType>
+            </CI_Date>
+          </date>
+        </CI_Citation>
+      </citation>
+      <abstract>
+        <gco:CharacterString>Woodland Survey Sites</gco:CharacterString>
+      </abstract>
+      <pointOfContact xmlns:gmd="http://www.isotc211.org/2005/gmd">
+        <CI_ResponsibleParty>
+          <individualName>
+            <gco:CharacterString>Simon Smart</gco:CharacterString>
+          </individualName>
+          <organisationName>
+            <gco:CharacterString>CEH Lancaster</gco:CharacterString>
+          </organisationName>
+          <contactInfo>
+            <CI_Contact>
+              <phone>
+                <CI_Telephone>
+                  <voice>
+                    <gco:CharacterString>01524 595800</gco:CharacterString>
+                  </voice>
+                </CI_Telephone>
+              </phone>
+              <address>
+                <CI_Address>
+                  <deliveryPoint>
+                    <gco:CharacterString>Library Avenue, Bailrigg</gco:CharacterString>
+                  </deliveryPoint>
+                  <city>
+                    <gco:CharacterString>Lancaster</gco:CharacterString>
+                  </city>
+                  <administrativeArea>
+                    <gco:CharacterString>Lancashire</gco:CharacterString>
+                  </administrativeArea>
+                  <postalCode>
+                    <gco:CharacterString>LA1 4AP</gco:CharacterString>
+                  </postalCode>
+                  <country>
+                    <gco:CharacterString>UK</gco:CharacterString>
+                  </country>
+                  <electronicMailAddress>
+                    <gco:CharacterString>enquiries@ceh.ac.uk</gco:CharacterString>
+                  </electronicMailAddress>
+                </CI_Address>
+              </address>
+            </CI_Contact>
+          </contactInfo>
+          <role>
+            <CI_RoleCode codeList="http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/Codelist/ML_gmxCodelists.xml#CI_RoleCode" codeListValue="pointOfContact">pointOfContact</CI_RoleCode>
+          </role>
+        </CI_ResponsibleParty>
+    <CI_ResponsibleParty>
+      <individualName>
+        <gco:CharacterString>Simon Smart</gco:CharacterString>
+      </individualName>
+      <organisationName>
+        <gco:CharacterString>CEH Lancaster</gco:CharacterString>
+      </organisationName>
+      <contactInfo>
+        <CI_Contact>
+          <address>
+            <CI_Address>
+              <deliveryPoint>
+                <gco:CharacterString>Lancaster Environment Centre,  Library Avenue, Bailrigg</gco:CharacterString>
+              </deliveryPoint>
+              <city>
+                <gco:CharacterString>Lancaster</gco:CharacterString>
+              </city>
+              <administrativeArea>
+                <gco:CharacterString>Lancashire</gco:CharacterString>
+              </administrativeArea>
+              <postalCode>
+                <gco:CharacterString>LA1 4AP</gco:CharacterString>
+              </postalCode>
+              <country>
+                <gco:CharacterString>United Kingdom</gco:CharacterString>
+              </country>
+              <electronicMailAddress>
+                <gco:CharacterString>enquiries@ceh.ac.uk</gco:CharacterString>
+              </electronicMailAddress>
+            </CI_Address>
+          </address>
+        </CI_Contact>
+      </contactInfo>
+      <role>
+        <CI_RoleCode codeList="http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/Codelist/ML_gmxCodelists.xml#CI_RoleCode" codeListValue="custodian">custodian</CI_RoleCode>
+      </role>
+    </CI_ResponsibleParty>
+    <CI_ResponsibleParty>
+      <individualName>
+        <gco:CharacterString>Test Individual</gco:CharacterString>
+      </individualName>
+      <organisationName>
+        <gco:CharacterString>Test Organization Name</gco:CharacterString>
+      </organisationName>
+      <contactInfo>
+        <CI_Contact>
+          <address>
+            <CI_Address>
+              <deliveryPoint>
+                <gco:CharacterString>Test Address</gco:CharacterString>
+              </deliveryPoint>
+              <city>
+                <gco:CharacterString>Test City</gco:CharacterString>
+              </city>
+              <administrativeArea>
+                <gco:CharacterString>Test Area</gco:CharacterString>
+              </administrativeArea>
+              <postalCode>
+                <gco:CharacterString>TES TPC</gco:CharacterString>
+              </postalCode>
+              <country>
+                <gco:CharacterString>United Kingdom</gco:CharacterString>
+              </country>
+              <electronicMailAddress>
+                <gco:CharacterString>test@test.co.uk</gco:CharacterString>
+              </electronicMailAddress>
+            </CI_Address>
+          </address>
+        </CI_Contact>
+      </contactInfo>
+      <role>
+        <CI_RoleCode codeList="http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/Codelist/ML_gmxCodelists.xml#CI_RoleCode" codeListValue="distributor">distributor</CI_RoleCode>
+      </role>
+    </CI_ResponsibleParty>
+
+      </pointOfContact>
+        <resourceConstraints>
+          <MD_LegalConstraints>
+            <accessConstraints>
+              <MD_RestrictionCode codeList="http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/Codelist/gmxCodelists.xml#MD_RestrictionCode" codeListValue="otherRestrictions">otherRestrictions</MD_RestrictionCode>
+            </accessConstraints>
+            <otherConstraints>
+              <gco:CharacterString>Limitations on public access</gco:CharacterString>
+            </otherConstraints>
+          </MD_LegalConstraints>
+        </resourceConstraints>
+        <resourceConstraints>
+          <MD_Constraints>
+            <useLimitation>
+              <gco:CharacterString>Reference and PSMA Only</gco:CharacterString>
+            </useLimitation>
+            <useLimitation>
+              <gco:CharacterString>http://www.barrowbc.gov.uk/giscopyright</gco:CharacterString>
+            </useLimitation>
+          </MD_Constraints>
+        </resourceConstraints>
+      <graphicOverview xmlns:gmd="http://www.isotc211.org/2005/gmd">
+        <MD_BrowseGraphic>
+          <fileName>
+            <gco:CharacterString>https://gateway.ceh.ac.uk/smartEditor/preview/73a2683d-081c-473c-8201-4c6578d9d19a.png</gco:CharacterString>
+          </fileName>
+          <fileDescription>
+            <gco:CharacterString>WoodlandSurveySites</gco:CharacterString>
+          </fileDescription>
+        </MD_BrowseGraphic>
+      </graphicOverview>
+      <descriptiveKeywords xmlns:gmd="http://www.isotc211.org/2005/gmd">
+        <MD_Keywords>
+          <keyword>
+            <gco:CharacterString>infoMapAccessService</gco:CharacterString>
+          </keyword>
+          <keyword>
+            <gco:CharacterString>CEH Biodiversity programme</gco:CharacterString>
+          </keyword>
+          <keyword>
+            <gco:CharacterString>NERC_DDC</gco:CharacterString>
+          </keyword>
+        </MD_Keywords>
+      </descriptiveKeywords>
+      <resourceConstraints>
+        <MD_LegalConstraints>
+          <useLimitation xmlns:gmd="http://www.isotc211.org/2005/gmd">
+            <gco:CharacterString>no conditions apply</gco:CharacterString>
+          </useLimitation>
+          <accessConstraints xmlns:gmd="http://www.isotc211.org/2005/gmd">
+            <MD_RestrictionCode codeList="http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/Codelist/ML_gmxCodelists.xml#MD_RestrictionCode" codeListValue="restricted"/>
+          </accessConstraints>
+          <accessConstraints xmlns:gmd="http://www.isotc211.org/2005/gmd">
+            <MD_RestrictionCode codeList="http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/Codelist/ML_gmxCodelists.xml#MD_RestrictionCode" codeListValue="otherRestrictions"/>
+          </accessConstraints>
+          <otherConstraints xmlns:gmd="http://www.isotc211.org/2005/gmd">
+            <gco:CharacterString>restrictions apply</gco:CharacterString>
+          </otherConstraints>
+        </MD_LegalConstraints>
+      </resourceConstraints>
+      <srv:serviceType>
+        <gco:LocalName>view</gco:LocalName>
+      </srv:serviceType>
+      <srv:serviceTypeVersion>
+        <gco:CharacterString>1.3.0</gco:CharacterString>
+      </srv:serviceTypeVersion>
+      <srv:extent>
+        <EX_Extent xmlns:gmd="http://www.isotc211.org/2005/gmd">
+          <geographicElement>
+            <EX_GeographicBoundingBox>
+              <extentTypeCode>
+                <gco:Boolean>true</gco:Boolean>
+              </extentTypeCode>
+              <westBoundLongitude>
+                <gco:Decimal>-6.22</gco:Decimal>
+              </westBoundLongitude>
+              <eastBoundLongitude>
+                <gco:Decimal>1.12</gco:Decimal>
+              </eastBoundLongitude>
+              <southBoundLatitude>
+                <gco:Decimal>50.21</gco:Decimal>
+              </southBoundLatitude>
+              <northBoundLatitude>
+                <gco:Decimal>58.15</gco:Decimal>
+              </northBoundLatitude>
+            </EX_GeographicBoundingBox>
+          </geographicElement>
+            <temporalElement>
+              <EX_TemporalExtent>
+                <extent>
+                  <gml:TimePeriod gml:id="idTemporalExtent">
+                    <gml:beginPosition>1904-06-16</gml:beginPosition>
+                    <gml:endPosition>2004-06-16</gml:endPosition>
+                  </gml:TimePeriod>
+                </extent>
+              </EX_TemporalExtent>
+            </temporalElement>
+        </EX_Extent>
+      </srv:extent>
+      <srv:coupledResource>
+        <srv:SV_CoupledResource>
+          <srv:operationName>
+            <gco:CharacterString/>
+          </srv:operationName>
+          <srv:identifier>
+            <gco:CharacterString>CEH:EIDC:#1281712040656</gco:CharacterString>
+          </srv:identifier>
+        </srv:SV_CoupledResource>
+      </srv:coupledResource>
+      <srv:coupledResource>
+        <srv:SV_CoupledResource>
+          <srv:operationName>
+            <gco:CharacterString>GetMap</gco:CharacterString>
+          </srv:operationName>
+          <srv:identifier>
+            <gco:CharacterString>https://gateway.ceh.ac.uk/soapServices/CSWStartup?Service=CSW&amp;Request=GetRecordById&amp;Version=2.0.2&amp;outputSchema=http://www.isotc211.org/2005/gmd&amp;elementSetname=full&amp;id=d7497c4f-0d03-4337-9bf7-fd066afa97c1</gco:CharacterString>
+          </srv:identifier>
+        </srv:SV_CoupledResource>
+      </srv:coupledResource>
+      <srv:couplingType>
+        <SV_CouplingType xmlns="http://www.isotc211.org/2005/srv" codeList="http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/Codelist/ML_gmxCodelists.xml#SV_CouplingType" codeListValue="tight"/>
+      </srv:couplingType>
+      <srv:containsOperations>
+        <srv:SV_OperationMetadata>
+          <srv:operationName>
+            <gco:CharacterString>GetCapabilities</gco:CharacterString>
+          </srv:operationName>
+          <srv:DCP>
+            <DCPList xmlns="http://www.isotc211.org/2005/srv" codeList="http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/Codelist/ML_gmxCodelists.xml#DCPList" codeListValue="WebService"/>
+          </srv:DCP>
+          <srv:connectPoint>
+            <CI_OnlineResource xmlns:gmd="http://www.isotc211.org/2005/gmd">
+              <linkage>
+                <URL>http://lasigpublic.nerc-lancaster.ac.uk/arcgis/services/Biodiversity/WoodlandSurvey/MapServer/WMSServer?</URL>
+              </linkage>
+            </CI_OnlineResource>
+          </srv:connectPoint>
+        </srv:SV_OperationMetadata>
+      </srv:containsOperations>
+      <srv:containsOperations>
+        <srv:SV_OperationMetadata>
+          <srv:operationName>
+            <gco:CharacterString>GetMap</gco:CharacterString>
+          </srv:operationName>
+          <srv:DCP>
+            <DCPList xmlns="http://www.isotc211.org/2005/srv" codeList="http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/Codelist/ML_gmxCodelists.xml#DCPList" codeListValue="WebService"/>
+          </srv:DCP>
+          <srv:connectPoint>
+            <CI_OnlineResource xmlns:gmd="http://www.isotc211.org/2005/gmd">
+              <linkage>
+                <URL>http://lasigpublic.nerc-lancaster.ac.uk/arcgis/services/Biodiversity/WoodlandSurvey/MapServer/WMSServer?</URL>
+              </linkage>
+            </CI_OnlineResource>
+          </srv:connectPoint>
+        </srv:SV_OperationMetadata>
+      </srv:containsOperations>
+      <srv:containsOperations>
+        <srv:SV_OperationMetadata>
+          <srv:operationName>
+            <gco:CharacterString>GetFeatureInfo</gco:CharacterString>
+          </srv:operationName>
+          <srv:DCP>
+            <DCPList xmlns="http://www.isotc211.org/2005/srv" codeList="http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/Codelist/ML_gmxCodelists.xml#DCPList" codeListValue="WebService"/>
+          </srv:DCP>
+          <srv:connectPoint>
+            <CI_OnlineResource xmlns:gmd="http://www.isotc211.org/2005/gmd">
+              <linkage>
+                <URL>http://lasigpublic.nerc-lancaster.ac.uk/arcgis/services/Biodiversity/WoodlandSurvey/MapServer/WMSServer?</URL>
+              </linkage>
+            </CI_OnlineResource>
+          </srv:connectPoint>
+        </srv:SV_OperationMetadata>
+      </srv:containsOperations>
+      <srv:operatesOn uuidref="CEH:EIDC:#1281712040656" xlink:href="CEH:EIDC:#1281712040656"/>
+      <srv:operatesOn uuidref="https://gateway.ceh.ac.uk/soapServices/CSWStartup?Service=CSW&amp;Request=GetRecordById&amp;Version=2.0.2&amp;outputSchema=http://www.isotc211.org/2005/gmd&amp;elementSetname=full&amp;id=d7497c4f-0d03-4337-9bf7-fd066afa97c1" xlink:href="https://gateway.ceh.ac.uk/soapServices/CSWStartup?Service=CSW&amp;Request=GetRecordById&amp;Version=2.0.2&amp;outputSchema=http://www.isotc211.org/2005/gmd&amp;elementSetname=full&amp;id=d7497c4f-0d03-4337-9bf7-fd066afa97c1"/>
+    </srv:SV_ServiceIdentification>
+  </identificationInfo>
+  <distributionInfo xmlns:gmd="http://www.isotc211.org/2005/gmd">
+    <MD_Distribution>
+      <distributor>
+        <MD_Distributor>
+          <distributorContact>
+            <CI_ResponsibleParty>
+              <organisationName>
+                <gco:CharacterString>Centre for Ecology &amp; Hydrology</gco:CharacterString>
+              </organisationName>
+              <contactInfo>
+                <CI_Contact>
+                  <address>
+                    <CI_Address>
+                      <deliveryPoint>
+                        <gco:CharacterString>Maclean Building, Benson Lane, Crowmarsh Gifford</gco:CharacterString>
+                      </deliveryPoint>
+                      <city>
+                        <gco:CharacterString>Wallingford</gco:CharacterString>
+                      </city>
+                      <administrativeArea>
+                        <gco:CharacterString>Oxfordshire </gco:CharacterString>
+                      </administrativeArea>
+                      <postalCode>
+                        <gco:CharacterString>OX10 8BB</gco:CharacterString>
+                      </postalCode>
+                      <country>
+                        <gco:CharacterString>United Kingdom</gco:CharacterString>
+                      </country>
+                      <electronicMailAddress>
+                        <gco:CharacterString>enquiries@ceh.ac.uk</gco:CharacterString>
+                      </electronicMailAddress>
+                    </CI_Address>
+                  </address>
+                </CI_Contact>
+              </contactInfo>
+              <role>
+                <CI_RoleCode codeList="http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/Codelist/ML_gmxCodelists.xml#CI_RoleCode" codeListValue="distributor">distributor</CI_RoleCode>
+              </role>
+            </CI_ResponsibleParty>
+          </distributorContact>
+        </MD_Distributor>
+      </distributor>
+      <transferOptions>
+        <MD_DigitalTransferOptions>
+          <onLine>
+            <CI_OnlineResource>
+              <linkage>
+                <URL>http://lasigpublic.nerc-lancaster.ac.uk/arcgis/services/Biodiversity/WoodlandSurvey/MapServer/WMSServer?request=getCapabilities&amp;service=WMS</URL>
+              </linkage>
+              <name>
+                <gco:CharacterString>Web Map Service (WMS)</gco:CharacterString>
+              </name>
+              <description>
+                <gco:CharacterString>Link to the GetCapabilities request for this service</gco:CharacterString>
+              </description>
+            </CI_OnlineResource>
+          </onLine>
+        </MD_DigitalTransferOptions>
+      </transferOptions>
+    </MD_Distribution>
+  </distributionInfo>
+</MD_Metadata>

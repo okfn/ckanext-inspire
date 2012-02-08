@@ -13,8 +13,11 @@ def serve(port=PORT):
     os.chdir(os.path.dirname(os.path.abspath( __file__ )))
 
     Handler = SimpleHTTPServer.SimpleHTTPRequestHandler
-
-    httpd = SocketServer.TCPServer(("", PORT), Handler)
+    
+    class TestServer(SocketServer.TCPServer):
+        allow_reuse_address = True
+    
+    httpd = TestServer(("", PORT), Handler)
     
     print 'Serving test HTTP server at port', PORT
 
