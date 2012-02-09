@@ -181,23 +181,20 @@ class InspireHarvester(object):
         self.obj.metadata_modified_date = metadata_modified_date
         self.obj.save()
 
-        # Look for previously harvested document matching Gemini GUID
-        harvested_objects = Session.query(HarvestObject) \
-                            .join(Package) \
+        last_harvested_object = Session.query(HarvestObject) \
                             .filter(HarvestObject.guid==gemini_guid) \
-                            .filter(HarvestObject.package!=None) \
-                            .filter(Package.state==u'active') \
-                            .order_by(HarvestObject.metadata_modified_date.desc()).all()
+                            .filter(HarvestObject.current==True) \
+                            .all()
 
-        if len(harvested_objects):
-            #SA returns nulls first.
-            last_harvested_object = harvested_objects[0]
-            for ho in harvested_objects:
-                if ho.metadata_modified_date:
-                    last_harvested_object = ho
-                    break
-        else:
-            last_harvested_object = None
+        if len(last_harvested_object) == 1:
+
+            last_harvested_object = last_harvested_object[0]
+
+            if last_harvested_object.package.state == u'deleted':
+                raise Exception('You are trying to update a deleted document, ' + \
+                                'please change its GUID (%s) if you want to recreate it' % gemini_guid)
+        elif len(last_harvested_object) == 2:
+                raise Exception('Application Error: more than one current record for GUID %s' % gemini_guid)
 
         if last_harvested_object:
             # We've previously harvested this (i.e. it's an update)
