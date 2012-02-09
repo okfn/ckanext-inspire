@@ -89,7 +89,6 @@ class TestHarvest(BaseCase):
 
         harvester = GeminiDocHarvester()
 
-        # We need to send an actual job, not the dict
         object_ids = harvester.gather_stage(job)
         assert object_ids, len(object_ids) == 1
 
@@ -194,7 +193,6 @@ class TestHarvest(BaseCase):
 
         harvester = GeminiDocHarvester()
 
-        # We need to send an actual job, not the dict
         object_ids = harvester.gather_stage(job)
         assert object_ids, len(object_ids) == 1
 
@@ -282,4 +280,84 @@ class TestHarvest(BaseCase):
                 raise AssertionError('Unexpected value in resource for %s: %s (was expecting %s)' % \
                     (key, resource[key], value))
 
+    def test_harvest_error_bad_xml(self):
+        # Create source
+        source_fixture = {
+            'url': u'http://127.0.0.1:8999/single/error_bad_xml.xml',
+            'type': u'gemini-single'
+        }
+
+        source, job = self._create_source_and_job(source_fixture)
+
+        harvester = GeminiDocHarvester()
+
+        object_ids = harvester.gather_stage(job)
+        assert object_ids is None
+
+        # Check gather errors
+        assert len(job.gather_errors) == 1
+        assert job.gather_errors[0].harvest_job_id == job.id
+        assert 'Error parsing the document' in job.gather_errors[0].message
+
+    def test_harvest_error_404(self):
+        # Create source
+        source_fixture = {
+            'url': u'http://127.0.0.1:8999/single/not_there.xml',
+            'type': u'gemini-single'
+        }
+
+        source, job = self._create_source_and_job(source_fixture)
+
+        harvester = GeminiDocHarvester()
+
+        object_ids = harvester.gather_stage(job)
+        assert object_ids is None
+
+        # Check gather errors
+        assert len(job.gather_errors) == 1
+        assert job.gather_errors[0].harvest_job_id == job.id
+        assert 'Unable to get content for URL' in job.gather_errors[0].message
+
+    def test_harvest_error_validation(self):
+
+        # Create source
+        source_fixture = {
+            'url': u'http://127.0.0.1:8999/single/error_validation.xml',
+            'type': u'gemini-single'
+        }
+
+        source, job = self._create_source_and_job(source_fixture)
+
+        harvester = GeminiDocHarvester()
+
+        object_ids = harvester.gather_stage(job)
+
+        # Right now the import process goes ahead even with validation errors
+        assert object_ids, len(object_ids) == 1
+
+        # No gather errors
+        assert len(job.gather_errors) == 1
+        assert job.gather_errors[0].harvest_job_id == job.id
+
+        message = job.gather_errors[0].message
+
+        assert 'Validation error' in message
+        assert 'Validating against gemini2 profile failed' in message
+        assert 'The metadata point of contact role shall be \'pointOfContact\'' in message
+        assert 'One email address shall be provided' in message
+        assert 'Service type shall be one of \'discovery\', \'view\', \'download\', \'transformation\', \'invoke\' or \'other\' following INSPIRE generic names' in message
+        assert 'Limitations on public access code list value shall be \'otherRestrictions\'' in message
+        assert 'One organisation name shall be provided' in message
+
+        # Fetch stage always returns True for Single Doc harvesters
+        assert harvester.fetch_stage(object_ids) == True
+
+        obj = HarvestObject.get(object_ids[0])
+        assert obj, obj.content
+        assert obj.guid == u'test-error-validation-1'
+
+        harvester.import_stage(obj)
+
+        # Check errors
+        assert len(obj.errors) == 1
 
