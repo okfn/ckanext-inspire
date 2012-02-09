@@ -77,11 +77,11 @@ class TestHarvest(BaseCase):
             assert obj.current == True
             assert obj.package_id in pkg_ids
 
-    def test_harvest_fields(self):
+    def test_harvest_fields_service(self):
 
         # Create source
         source_fixture = {
-            'url': u'http://127.0.0.1:8999/single/wms1.xml',
+            'url': u'http://127.0.0.1:8999/single/service1.xml',
             'type': u'gemini-single'
         }
 
@@ -91,68 +91,73 @@ class TestHarvest(BaseCase):
 
         # We need to send an actual job, not the dict
         object_ids = harvester.gather_stage(job)
+        assert object_ids, len(object_ids) == 1
 
-        assert len(object_ids) == 1
+        # No gather errors
+        assert len(job.gather_errors) == 0
 
         # Fetch stage always returns True for Single Doc harvesters
         assert harvester.fetch_stage(object_ids) == True
 
         obj = HarvestObject.get(object_ids[0])
         assert obj, obj.content
-        assert obj.guid == u'73a2683d-081c-473c-8201-4c6578d9d19a'
-        
+        assert obj.guid == u'test-service-1'
+
         harvester.import_stage(obj)
-        
+
+        # No object errors
+        assert len(obj.errors) == 0
+
         context = {'model':model,'session':Session,'user':u'harvest'}
         package_dict = get_action('package_show_rest')(context,{'id':obj.package_id})
 
         assert package_dict
 
         expected = {
-            'name': u'woodland-survey-sites',
-            'title': u'Woodland Survey Sites',
-            'notes': u'Woodland Survey Sites',
-            'tags': [u'CEH Biodiversity programme', u'NERC_DDC', u'infoMapAccessService'],
+            'name': u'one-scotland-address-gazetteer-web-map-service-wms',
+            'title': u'One Scotland Address Gazetteer Web Map Service (WMS)',
+            'tags': [u'Addresses', u'Scottish National Gazetteer'],
+            'notes': u'This service displays its contents at larger scale than 1:10000. [edited]',
         }
 
         for key,value in expected.iteritems():
             if not package_dict[key] == value:
                 raise AssertionError('Unexpected value for %s: %s (was expecting %s)' % \
                     (key, package_dict[key], value))
-        
+
         expected_extras = {
             # Basic
             'harvest_object_id': obj.id,
             'guid': obj.guid,
             'UKLP': u'True',
             'resource-type': u'service',
-            'responsible-party': u'CEH Lancaster (pointOfContact, custodian); Test Organization Name (distributor)',
+            'access_constraints': u'["No restriction on public access"]',
+            'responsible-party': u'The Improvement Service (resourceProvider)',
+            'contact-email': u'OSGCM@improvementservice.org.uk',
             # Spatial
-            'bbox-east-long': u'1.12',
-            'bbox-north-lat': u'58.15',
-            'bbox-south-lat': u'50.21',
-            'bbox-west-long': u'-6.22',
-            'spatial': u'{"type":"Polygon","coordinates":[[[1.12, 50.21],[1.12, 58.15], [-6.22, 58.15], [-6.22, 50.21], [1.12, 50.21]]]}',
+            'bbox-east-long': u'0.5242365625',
+            'bbox-north-lat': u'61.0243',
+            'bbox-south-lat': u'54.4764484375',
+            'bbox-west-long': u'-9.099786875',
+            'spatial': u'{"type":"Polygon","coordinates":[[[0.5242365625, 54.4764484375],[0.5242365625, 61.0243], [-9.099786875, 61.0243], [-9.099786875, 54.4764484375], [0.5242365625, 54.4764484375]]]}',
             # Other
-            'access_constraints': u'["Limitations on public access", "restrictions apply"]',
-            'spatial-data-service-type': u'view',
-            'spatial-reference-system': u'CRS:84',
-            'contact-email': 'enquiries@ceh.ac.uk',
-            'dataset-reference-date': '[{"type": "creation", "value": "2007-05-01"}]',
-            'frequency-of-update': '',
-            'metadata-date': '2011-12-13',
-            'metadata-language': 'eng',
-            'licence': u'["Reference and PSMA Only", "http://www.barrowbc.gov.uk/giscopyright"]',
-            'licence_url': u'http://www.barrowbc.gov.uk/giscopyright',
+            'coupled-resource': u'[{"href": ["http://scotgovsdi.edina.ac.uk/srv/en/csw?service=CSW&request=GetRecordById&version=2.0.2&outputSchema=http://www.isotc211.org/2005/gmd&elementSetName=full&id=250ea276-48e2-4189-8a89-fcc4ca92d652"], "uuid": ["250ea276-48e2-4189-8a89-fcc4ca92d652"], "title": []}]',
+            'dataset-reference-date': u'[{"type": "publication", "value": "2011-09-08"}]',
+            'frequency-of-update': u'daily',
+            'licence': u'["Use of the One Scotland Gazetteer data used by this this service is available to any organisation that is a member of the One Scotland Mapping Agreement. It is not currently commercially available", "http://www.test.gov.uk/licenseurl"]',
+            'licence_url': u'http://www.test.gov.uk/licenseurl',
+            'metadata-date': u'2011-09-08T16:07:32',
+            'metadata-language': u'eng',
+            'spatial-data-service-type': u'other',
+            'spatial-reference-system': u'OSGB 1936 / British National Grid (EPSG:27700)',
             'temporal_coverage-from': u'["1904-06-16"]',
             'temporal_coverage-to': u'["2004-06-16"]',
-
         }
-        
+
         for key,value in expected_extras.iteritems():
             if not key in package_dict['extras']:
                 raise AssertionError('Extra %s not present in package' % key)
-            
+
             if not package_dict['extras'][key] == value:
                 raise AssertionError('Unexpected value for extra %s: %s (was expecting %s)' % \
                     (key, package_dict['extras'][key], value))
@@ -162,11 +167,11 @@ class TestHarvest(BaseCase):
             'description': 'Link to the GetCapabilities request for this service',
             'format': 'WMS',
             'name': 'Web Map Service (WMS)',
-            'resource_locator_function': '', #TODO
-            'resource_locator_protocol': '', #TODO
+            'resource_locator_function': 'download',
+            'resource_locator_protocol': 'OGC:WMS-1.3.0-http-get-capabilities',
             'resource_type': None,
             'size': None,
-            'url': 'http://lasigpublic.nerc-lancaster.ac.uk/arcgis/services/Biodiversity/WoodlandSurvey/MapServer/WMSServer?request=getCapabilities&service=WMS',
+            'url': u'http://sedsh13.sedsh.gov.uk/ArcGIS/services/OSG/OSG/MapServer/WMSServer?request=GetCapabilities&service=WMS',
             'verified': 'True',
         }
 
@@ -175,6 +180,106 @@ class TestHarvest(BaseCase):
             if not resource[key] == value:
                 raise AssertionError('Unexpected value in resource for %s: %s (was expecting %s)' % \
                     (key, resource[key], value))
-        assert datetime.strptime(resource['verified_date'],'%Y-%m-%dT%H:%M:%S.%f').date() == date.today() 
+        assert datetime.strptime(resource['verified_date'],'%Y-%m-%dT%H:%M:%S.%f').date() == date.today()
+
+    def test_harvest_fields_dataset(self):
+
+        # Create source
+        source_fixture = {
+            'url': u'http://127.0.0.1:8999/single/dataset1.xml',
+            'type': u'gemini-single'
+        }
+
+        source, job = self._create_source_and_job(source_fixture)
+
+        harvester = GeminiDocHarvester()
+
+        # We need to send an actual job, not the dict
+        object_ids = harvester.gather_stage(job)
+        assert object_ids, len(object_ids) == 1
+
+        # No gather errors
+        assert len(job.gather_errors) == 0
+
+        # Fetch stage always returns True for Single Doc harvesters
+        assert harvester.fetch_stage(object_ids) == True
+
+        obj = HarvestObject.get(object_ids[0])
+        assert obj, obj.content
+        assert obj.guid == u'test-dataset-1'
+
+        harvester.import_stage(obj)
+
+        # No object errors
+        assert len(obj.errors) == 0
+
+        context = {'model':model,'session':Session,'user':u'harvest'}
+        package_dict = get_action('package_show_rest')(context,{'id':obj.package_id})
+
+        assert package_dict
+
+        expected = {
+            'name': u'country-parks-scotland',
+            'title': u'Country Parks (Scotland)',
+            'tags': [u'Nature conservation'],
+            'notes': u'Parks are set up by Local Authorities to provide open-air recreation facilities close to towns and cities. [edited]'
+        }
+
+        for key,value in expected.iteritems():
+            if not package_dict[key] == value:
+                raise AssertionError('Unexpected value for %s: %s (was expecting %s)' % \
+                    (key, package_dict[key], value))
+
+        expected_extras = {
+            # Basic
+            'harvest_object_id': obj.id,
+            'guid': obj.guid,
+            'resource-type': u'dataset',
+            'responsible-party': u'Scottish Natural Heritage (custodian, distributor)',
+            'access_constraints': u'["Copyright Scottish Natural Heritage"]',
+            'contact-email': u'data_supply@snh.gov.uk',
+            # Spatial
+            'bbox-east-long': u'0.205857204',
+            'bbox-north-lat': u'61.06066944',
+            'bbox-south-lat': u'54.529947158',
+            'bbox-west-long': u'-8.97114288',
+            'spatial': u'{"type":"Polygon","coordinates":[[[0.205857204, 54.529947158],[0.205857204, 61.06066944], [-8.97114288, 61.06066944], [-8.97114288, 54.529947158], [0.205857204, 54.529947158]]]}',
+            # Other
+            'coupled-resource': u'[]',
+            'dataset-reference-date': u'[{"type": "creation", "value": "2004-02"}, {"type": "revision", "value": "2006-07-03"}]',
+            'frequency-of-update': u'irregular',
+            'licence': u'["Reference and PSMA Only", "http://www.test.gov.uk/licenseurl"]',
+            'licence_url': u'http://www.test.gov.uk/licenseurl',
+            'metadata-date': u'2011-09-23T10:06:08',
+            'metadata-language': u'eng',
+            'spatial-reference-system': u'urn:ogc:def:crs:EPSG::27700',
+            'temporal_coverage-from': u'["1998"]',
+            'temporal_coverage-to': u'["2010"]',
+        }
+
+        for key,value in expected_extras.iteritems():
+            if not key in package_dict['extras']:
+                raise AssertionError('Extra %s not present in package' % key)
+
+            if not package_dict['extras'][key] == value:
+                raise AssertionError('Unexpected value for extra %s: %s (was expecting %s)' % \
+                    (key, package_dict['extras'][key], value))
+
+        expected_resource = {
+            'description': 'Test Resource Description',
+            'format': u'',
+            'name': 'Test Resource Name',
+            'resource_locator_function': 'download',
+            'resource_locator_protocol': 'test-protocol',
+            'resource_type': None,
+            'size': None,
+            'url': u'https://gateway.snh.gov.uk/pls/apex_ddtdb2/f?p=101',
+        }
+
+        resource = package_dict['resources'][0]
+        for key,value in expected_resource.iteritems():
+            if not resource[key] == value:
+                raise AssertionError('Unexpected value in resource for %s: %s (was expecting %s)' % \
+                    (key, resource[key], value))
 
 
