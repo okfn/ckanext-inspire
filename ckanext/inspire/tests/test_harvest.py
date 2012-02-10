@@ -521,3 +521,67 @@ class TestHarvest(BaseCase):
         assert not second_obj.package, not second_obj.package_id
         assert second_obj.current == False, first_obj.current == True
 
+    def test_harvest_different_sources_same_document(self):
+
+        # Create source1
+        source1_fixture = {
+            'url': u'http://127.0.0.1:8999/single/source1/same_dataset.xml',
+            'type': u'gemini-single'
+        }
+
+        source1, first_job = self._create_source_and_job(source1_fixture)
+
+        first_obj = self._run_job_for_single_document(first_job)
+
+        first_package_dict = get_action('package_show_rest')(self.context,{'id':first_obj.package_id})
+
+        # Package was created
+        assert first_package_dict
+        assert first_package_dict['state'] == u'active'
+        assert first_obj.current == True
+
+        # Harvest the same document, unchanged, from another source, the package
+        # is not updated.
+        # (As of https://github.com/okfn/ckanext-inspire/commit/9fb67
+        # we are no longer throwing an exception when this happens)
+        source2_fixture = {
+            'url': u'http://127.0.0.1:8999/single/source2/same_dataset.xml',
+            'type': u'gemini-single'
+        }
+
+        source2, second_job = self._create_source_and_job(source2_fixture)
+
+        second_obj = self._run_job_for_single_document(second_job)
+
+        second_package_dict = get_action('package_show_rest')(self.context,{'id':first_obj.package_id})
+
+        # Package was not updated
+        assert second_package_dict, first_package_dict['id'] == second_package_dict['id']
+        assert first_package_dict['metadata_modified'] == second_package_dict['metadata_modified']
+        assert not second_obj.package, not second_obj.package_id
+        assert second_obj.current == False, first_obj.current == True
+
+
+        # Inactivate source1 and reharvest from source2, package should be updated
+        third_job = self._create_job(source2.id)
+        third_obj = self._run_job_for_single_document(third_job,force_import=True)
+
+        Session.remove()
+        Session.add(first_obj)
+        Session.add(second_obj)
+        Session.add(third_obj)
+
+        Session.refresh(first_obj)
+        Session.refresh(second_obj)
+        Session.refresh(third_obj)
+
+        third_package_dict = get_action('package_show_rest')(self.context,{'id':first_obj.package_id})
+
+        # Package was updated
+        assert third_package_dict, first_package_dict['id'] == third_package_dict['id']
+        assert third_package_dict['metadata_modified'] > second_package_dict['metadata_modified']
+        assert third_obj.package, third_obj.package_id == first_package_dict['id']
+        assert third_obj.current == True
+        assert second_obj.current == False
+        assert first_obj.current == False
+
