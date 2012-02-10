@@ -20,12 +20,27 @@ class TestHarvest(BaseCase):
 
     @classmethod
     def setup_class(cls):
+
+        # Setup harvest tables
         harvest_model_setup()
+
+        # Start simple HTTP server
         serve()
 
     @classmethod
     def teardown_class(cls):
         pass
+
+    def setup(self):
+
+        # Add sysadmin user
+        harvest_user = model.User(name=u'harvest', password=u'test')
+        model.add_user_to_role(harvest_user, model.Role.ADMIN, model.System())
+        Session.add(harvest_user)
+
+        self.context ={'model':model,
+                       'session':Session,
+                       'user':u'harvest'}
 
     def teardown(self):
        model.repo.rebuild_db()
@@ -115,8 +130,7 @@ class TestHarvest(BaseCase):
         # No object errors
         assert len(obj.errors) == 0
 
-        context = {'model':model,'session':Session,'user':u'harvest'}
-        package_dict = get_action('package_show_rest')(context,{'id':obj.package_id})
+        package_dict = get_action('package_show_rest')(self.context,{'id':obj.package_id})
 
         assert package_dict
 
@@ -219,8 +233,7 @@ class TestHarvest(BaseCase):
         # No object errors
         assert len(obj.errors) == 0
 
-        context = {'model':model,'session':Session,'user':u'harvest'}
-        package_dict = get_action('package_show_rest')(context,{'id':obj.package_id})
+        package_dict = get_action('package_show_rest')(self.context,{'id':obj.package_id})
 
         assert package_dict
 
@@ -395,8 +408,7 @@ class TestHarvest(BaseCase):
         Session.refresh(first_obj)
         assert len(first_obj.errors) == 0
 
-        context = {'model':model,'session':Session,'user':u'harvest'}
-        first_package_dict = get_action('package_show_rest')(context,{'id':first_obj.package_id})
+        first_package_dict = get_action('package_show_rest')(self.context,{'id':first_obj.package_id})
 
         # Package was created
         assert first_package_dict
@@ -429,7 +441,7 @@ class TestHarvest(BaseCase):
 
         assert len(second_obj.errors) == 0
 
-        second_package_dict = get_action('package_show_rest')(context,{'id':first_obj.package_id})
+        second_package_dict = get_action('package_show_rest')(self.context,{'id':first_obj.package_id})
 
         # Package was not updated
         assert second_package_dict, first_package_dict['id'] == second_package_dict['id']
@@ -468,7 +480,7 @@ class TestHarvest(BaseCase):
 
         assert len(third_obj.errors) == 0
 
-        third_package_dict = get_action('package_show_rest')(context,{'id':third_obj.package_id})
+        third_package_dict = get_action('package_show_rest')(self.context,{'id':third_obj.package_id})
 
         # Package was updated
         assert third_package_dict, first_package_dict['id'] == third_package_dict['id']
@@ -477,4 +489,70 @@ class TestHarvest(BaseCase):
         assert third_obj.current == True
         assert second_obj.current == False
         assert first_obj.current == False
+
+    def test_harvest_deleted_record(self):
+
+        # Create source
+        source_fixture = {
+            'url': u'http://127.0.0.1:8999/single/service1.xml',
+            'type': u'gemini-single'
+        }
+
+        source, first_job = self._create_source_and_job(source_fixture)
+
+        harvester = GeminiDocHarvester()
+
+        object_ids = harvester.gather_stage(first_job)
+        assert object_ids, len(object_ids) == 1
+        assert len(first_job.gather_errors) == 0
+
+        assert harvester.fetch_stage(object_ids) == True
+
+        first_obj = HarvestObject.get(object_ids[0])
+        assert first_obj, first_obj.content
+
+        harvester.import_stage(first_obj)
+        Session.refresh(first_obj)
+        assert len(first_obj.errors) == 0
+
+        first_package_dict = get_action('package_show_rest')(self.context,{'id':first_obj.package_id})
+
+        # Package was created
+        assert first_package_dict
+        assert first_package_dict['state'] == u'active'
+        assert first_obj.current == True
+
+        # Delete package
+        first_package_dict['state'] = u'deleted'
+        self.context.update({'id':first_package_dict['id']})
+        updated_package_dict = get_action('package_update_rest')(self.context,first_package_dict)
+
+        # Create and run a second job, an exception should be raised
+        # and the package should not be updated
+        first_job.status = u'Finished'
+        first_job.save()
+        second_job = self._create_job(source.id)
+
+        object_ids = harvester.gather_stage(second_job)
+        assert object_ids, len(object_ids) == 1
+        assert len(second_job.gather_errors) == 0
+
+        assert harvester.fetch_stage(object_ids) == True
+
+        second_obj = HarvestObject.get(object_ids[0])
+        assert second_obj, second_obj.content
+
+        harvester.import_stage(second_obj)
+
+        assert len(second_obj.errors) == 1
+        assert 'You are trying to update a deleted document, please change its GUID' in second_obj.errors[0].message
+
+        #del context['package']
+        second_package_dict = get_action('package_show_rest')(self.context,{'id':first_obj.package_id})
+
+        # Package was not updated
+        assert second_package_dict, updated_package_dict['id'] == second_package_dict['id']
+        assert updated_package_dict['metadata_modified'] == second_package_dict['metadata_modified']
+        assert not second_obj.package, not second_obj.package_id
+        assert second_obj.current == False, first_obj.current == True
 
