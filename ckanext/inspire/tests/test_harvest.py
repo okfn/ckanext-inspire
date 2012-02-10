@@ -63,6 +63,37 @@ class TestHarvest(BaseCase):
 
         return source, job
 
+    def _run_job_for_single_document(self,job,force_import=False,expect_gather_errors=False,expect_obj_errors=False):
+
+        harvester = GeminiDocHarvester()
+
+        if force_import:
+            harvester.force_import = True
+
+        object_ids = harvester.gather_stage(job)
+        assert object_ids, len(object_ids) == 1
+        if expect_gather_errors:
+            assert len(job.gather_errors) > 0
+        else:
+            assert len(job.gather_errors) == 0
+
+        assert harvester.fetch_stage(object_ids) == True
+
+        obj = HarvestObject.get(object_ids[0])
+        assert obj, obj.content
+
+        harvester.import_stage(obj)
+        Session.refresh(obj)
+        if expect_obj_errors:
+            assert len(obj.errors) > 0
+        else:
+            assert len(obj.errors) == 0
+
+        job.status = u'Finished'
+        job.save()
+
+        return obj
+
     def test_harvest_basic(self):
 
         # Create source
@@ -393,20 +424,7 @@ class TestHarvest(BaseCase):
 
         source, first_job = self._create_source_and_job(source_fixture)
 
-        harvester = GeminiDocHarvester()
-
-        object_ids = harvester.gather_stage(first_job)
-        assert object_ids, len(object_ids) == 1
-        assert len(first_job.gather_errors) == 0
-
-        assert harvester.fetch_stage(object_ids) == True
-
-        first_obj = HarvestObject.get(object_ids[0])
-        assert first_obj, first_obj.content
-
-        harvester.import_stage(first_obj)
-        Session.refresh(first_obj)
-        assert len(first_obj.errors) == 0
+        first_obj = self._run_job_for_single_document(first_job)
 
         first_package_dict = get_action('package_show_rest')(self.context,{'id':first_obj.package_id})
 
@@ -416,20 +434,9 @@ class TestHarvest(BaseCase):
         assert first_obj.package
 
         # Create and run a second job, the package should not be updated
-        first_job.status = u'Finished'
-        first_job.save()
         second_job = self._create_job(source.id)
 
-        object_ids = harvester.gather_stage(second_job)
-        assert object_ids, len(object_ids) == 1
-        assert len(second_job.gather_errors) == 0
-
-        assert harvester.fetch_stage(object_ids) == True
-
-        second_obj = HarvestObject.get(object_ids[0])
-        assert second_obj, second_obj.content
-
-        harvester.import_stage(second_obj)
+        second_obj = self._run_job_for_single_document(second_job)
 
         Session.remove()
         Session.add(first_obj)
@@ -437,9 +444,6 @@ class TestHarvest(BaseCase):
 
         Session.refresh(first_obj)
         Session.refresh(second_obj)
-
-
-        assert len(second_obj.errors) == 0
 
         second_package_dict = get_action('package_show_rest')(self.context,{'id':first_obj.package_id})
 
@@ -450,22 +454,8 @@ class TestHarvest(BaseCase):
         assert second_obj.current == False, first_obj.current == True
 
         # Create and run a third job, forcing the importing to simulate an update in the package
-        harvester.force_import = True
-
-        second_job.status = u'Finished'
-        second_job.save()
         third_job = self._create_job(source.id)
-
-        object_ids = harvester.gather_stage(third_job)
-        assert object_ids, len(object_ids) == 1
-        assert len(third_job.gather_errors) == 0
-
-        assert harvester.fetch_stage(object_ids) == True
-
-        third_obj = HarvestObject.get(object_ids[0])
-        assert third_obj, third_obj.content
-
-        harvester.import_stage(third_obj)
+        third_obj = self._run_job_for_single_document(third_job,force_import=True)
 
         # For some reason first_obj does not get updated after the import_stage,
         # and we have to force a refresh to get the actual DB values.
@@ -477,8 +467,6 @@ class TestHarvest(BaseCase):
         Session.refresh(first_obj)
         Session.refresh(second_obj)
         Session.refresh(third_obj)
-
-        assert len(third_obj.errors) == 0
 
         third_package_dict = get_action('package_show_rest')(self.context,{'id':third_obj.package_id})
 
@@ -500,20 +488,7 @@ class TestHarvest(BaseCase):
 
         source, first_job = self._create_source_and_job(source_fixture)
 
-        harvester = GeminiDocHarvester()
-
-        object_ids = harvester.gather_stage(first_job)
-        assert object_ids, len(object_ids) == 1
-        assert len(first_job.gather_errors) == 0
-
-        assert harvester.fetch_stage(object_ids) == True
-
-        first_obj = HarvestObject.get(object_ids[0])
-        assert first_obj, first_obj.content
-
-        harvester.import_stage(first_obj)
-        Session.refresh(first_obj)
-        assert len(first_obj.errors) == 0
+        first_obj = self._run_job_for_single_document(first_job)
 
         first_package_dict = get_action('package_show_rest')(self.context,{'id':first_obj.package_id})
 
@@ -533,21 +508,11 @@ class TestHarvest(BaseCase):
         first_job.save()
         second_job = self._create_job(source.id)
 
-        object_ids = harvester.gather_stage(second_job)
-        assert object_ids, len(object_ids) == 1
-        assert len(second_job.gather_errors) == 0
-
-        assert harvester.fetch_stage(object_ids) == True
-
-        second_obj = HarvestObject.get(object_ids[0])
-        assert second_obj, second_obj.content
-
-        harvester.import_stage(second_obj)
+        second_obj = self._run_job_for_single_document(second_job, expect_obj_errors=True)
 
         assert len(second_obj.errors) == 1
         assert 'You are trying to update a deleted document, please change its GUID' in second_obj.errors[0].message
 
-        #del context['package']
         second_package_dict = get_action('package_show_rest')(self.context,{'id':first_obj.package_id})
 
         # Package was not updated
