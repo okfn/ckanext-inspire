@@ -67,8 +67,8 @@ class TestHarvest(BaseCase):
 
         harvester = GeminiDocHarvester()
 
-        if force_import:
-            harvester.force_import = True
+        harvester.force_import = force_import
+
 
         object_ids = harvester.gather_stage(job)
         assert object_ids, len(object_ids) == 1
@@ -185,6 +185,7 @@ class TestHarvest(BaseCase):
             'resource-type': u'service',
             'access_constraints': u'["No restriction on public access"]',
             'responsible-party': u'The Improvement Service (resourceProvider)',
+            'provider':u'The Improvement Service',
             'contact-email': u'OSGCM@improvementservice.org.uk',
             # Spatial
             'bbox-east-long': u'0.5242365625',
@@ -314,6 +315,8 @@ class TestHarvest(BaseCase):
             if not package_dict['extras'][key] == value:
                 raise AssertionError('Unexpected value for extra %s: %s (was expecting %s)' % \
                     (key, package_dict['extras'][key], value))
+
+        assert not 'provider' in package_dict['extras']
 
         expected_resource = {
             'description': 'Test Resource Description',

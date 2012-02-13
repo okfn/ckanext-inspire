@@ -265,9 +265,14 @@ class InspireHarvester(object):
             #gemini_values['temporal-extent-end'].sort()
             extras['temporal_coverage-to'] = gemini_values['temporal-extent-end']
 
-        #Save responsible organization roles
+        # Save responsible organization roles
         parties = {}
         for responsible_party in gemini_values['responsible-organisation']:
+
+            # Save provider in a separate extra
+            if responsible_party['role'] == 'resourceProvider' and not 'provider' in extras:
+                extras['provider'] = responsible_party['organisation-name']
+
             if responsible_party['organisation-name'] in parties:
                 if not responsible_party['role'] in parties[responsible_party['organisation-name']]:
                     parties[responsible_party['organisation-name']].append(responsible_party['role'])
