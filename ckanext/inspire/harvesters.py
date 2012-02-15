@@ -19,6 +19,7 @@ import logging
 log = logging.getLogger(__name__)
 
 from pylons import config
+from sqlalchemy.sql import update,and_, bindparam
 from sqlalchemy.exc import InvalidRequestError
 
 from ckan import model
@@ -180,23 +181,20 @@ class InspireHarvester(object):
         self.obj.metadata_modified_date = metadata_modified_date
         self.obj.save()
 
-        # Look for previously harvested document matching Gemini GUID
-        harvested_objects = Session.query(HarvestObject) \
-                            .join(Package) \
+        last_harvested_object = Session.query(HarvestObject) \
                             .filter(HarvestObject.guid==gemini_guid) \
-                            .filter(HarvestObject.package!=None) \
-                            .filter(Package.state==u'active') \
-                            .order_by(HarvestObject.metadata_modified_date.desc()).all()
+                            .filter(HarvestObject.current==True) \
+                            .all()
 
-        if len(harvested_objects):
-            #SA returns nulls first.
-            last_harvested_object = harvested_objects[0]
-            for ho in harvested_objects:
-                if ho.metadata_modified_date:
-                    last_harvested_object = ho
-                    break
-        else:
-            last_harvested_object = None
+        if len(last_harvested_object) == 1:
+
+            last_harvested_object = last_harvested_object[0]
+
+            if last_harvested_object.package.state == u'deleted':
+                raise Exception('You are trying to update a deleted document, ' + \
+                                'please change its GUID (%s) if you want to recreate it' % gemini_guid)
+        elif len(last_harvested_object) == 2:
+                raise Exception('Application Error: more than one current record for GUID %s' % gemini_guid)
 
         if last_harvested_object:
             # We've previously harvested this (i.e. it's an update)
@@ -205,7 +203,9 @@ class InspireHarvester(object):
             # needs to be updated
             if last_harvested_object.metadata_modified_date is None \
                 or last_harvested_object.metadata_modified_date < self.obj.metadata_modified_date \
-                or self.force_import:
+                or self.force_import \
+                or (last_harvested_object.metadata_modified_date == self.obj.metadata_modified_date and
+                    last_harvested_object.source.active is False):
 
                 if self.force_import:
                     log.info('Import forced for package %s' % gemini_guid)
@@ -265,9 +265,14 @@ class InspireHarvester(object):
             #gemini_values['temporal-extent-end'].sort()
             extras['temporal_coverage-to'] = gemini_values['temporal-extent-end']
 
-        #Save responsible organization roles
+        # Save responsible organization roles
         parties = {}
         for responsible_party in gemini_values['responsible-organisation']:
+
+            # Save provider in a separate extra
+            if responsible_party['role'] == 'resourceProvider' and not 'provider' in extras:
+                extras['provider'] = responsible_party['organisation-name']
+
             if responsible_party['organisation-name'] in parties:
                 if not responsible_party['role'] in parties[responsible_party['organisation-name']]:
                     parties[responsible_party['organisation-name']].append(responsible_party['role'])
@@ -311,7 +316,7 @@ class InspireHarvester(object):
             package_dict['name'] = package.name
 
         resource_locators = gemini_values.get('resource-locator', [])
-        
+
         if len(resource_locators):
             for resource_locator in resource_locators:
                 url = resource_locator.get('url','')
@@ -345,7 +350,7 @@ class InspireHarvester(object):
                 view_resources = [r for r in package_dict['resources'] if r['format'] == 'WMS']
                 if len(view_resources):
                     view_resources[0]['ckan_recommended_wms_preview'] = True
-        
+
         extras_as_dict = []
         for key,value in extras.iteritems():
             if isinstance(value,(basestring,Number)):
@@ -359,20 +364,33 @@ class InspireHarvester(object):
             # Create new package from data.
             package = self._create_package_from_data(package_dict)
             log.info('Created new package ID %s with GEMINI guid %s', package['id'], gemini_guid)
-
         else:
             package = self._create_package_from_data(package_dict, package = package)
             log.info('Updated existing package ID %s with existing GEMINI guid %s', package['id'], gemini_guid)
-        
-        # Set reference to package in the HarvestObject
-        # (only for newly created objects, if we are reimporting the reference
-        # is alredy set)
-        if not self.obj.package_id or self.obj.package_id != package['id']:
+
+        # Flag the other objects of this source as not current anymore
+        from ckanext.harvest.model import harvest_object_table
+        u = update(harvest_object_table) \
+                .where(harvest_object_table.c.package_id==bindparam('b_package_id')) \
+                .values(current=False)
+        Session.execute(u, params={'b_package_id':package['id']})
+        Session.commit()
+
+        # Remove current objects from session, otherwise the
+        # import paster command fails
+        Session.remove()
+
+        # Set reference to package in the HarvestObject and flag it as
+        # the current one
+        if not self.obj.package_id:
             self.obj.package_id = package['id']
-            self.obj.save()
-        
+
+        self.obj.current = True
+        self.obj.save()
+
         assert gemini_guid == [e['value'] for e in package['extras'] if e['key'] == 'guid'][0]
         assert self.obj.id == [e['value'] for e in package['extras'] if e['key'] ==  'harvest_object_id'][0]
+
         return package
 
     def gen_new_name(self,title):
@@ -460,7 +478,7 @@ class InspireHarvester(object):
         else:
             gemini_xml = xml.find(metadata_tag)
 
-        if not gemini_xml:
+        if gemini_xml is None:
             self._save_gather_error('Content is not a valid Gemini document',self.harvest_job)
 
         if not self.validator:
