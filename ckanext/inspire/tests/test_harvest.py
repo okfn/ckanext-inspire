@@ -10,7 +10,10 @@ from ckan.logic import get_action
 
 from ckanext.harvest.model import (setup as harvest_model_setup,
                                     HarvestSource,HarvestJob,HarvestObject)
-from ckanext.harvest.lib import (create_harvest_source, create_harvest_job)
+from ckanext.harvest.lib import (create_harvest_source,
+                                 create_harvest_job,
+                                 import_last_objects,
+                                 get_harvest_source)
 
 from ckanext.inspire.harvesters import GeminiHarvester, GeminiDocHarvester, GeminiWafHarvester
 
@@ -587,4 +590,55 @@ class TestHarvest(BaseCase):
         assert third_obj.current == True
         assert second_obj.current == False
         assert first_obj.current == False
+
+
+    def test_harvest_import_command(self):
+
+        # Create source
+        source_fixture = {
+            'url': u'http://127.0.0.1:8999/single/dataset1.xml',
+            'type': u'gemini-single'
+        }
+
+        source, first_job = self._create_source_and_job(source_fixture)
+
+        first_obj = self._run_job_for_single_document(first_job)
+
+        before_package_dict = get_action('package_show_rest')(self.context,{'id':first_obj.package_id})
+
+        # Package was created
+        assert before_package_dict
+        assert first_obj.current == True
+        assert first_obj.package
+
+        # Create and run two more jobs, the package should not be updated
+        second_job = self._create_job(source.id)
+        second_obj = self._run_job_for_single_document(second_job)
+        third_job = self._create_job(source.id)
+        third_obj = self._run_job_for_single_document(third_job)
+
+        # Run the import command manually
+        imported_objects = import_last_objects(source.id)
+
+        Session.remove()
+        Session.add(first_obj)
+        Session.add(second_obj)
+        Session.add(third_obj)
+
+        Session.refresh(first_obj)
+        Session.refresh(second_obj)
+        Session.refresh(third_obj)
+
+        after_package_dict = get_action('package_show_rest')(self.context,{'id':imported_objects[0].package_id})
+
+        # Package was updated, and the current object remains the same
+        assert after_package_dict, before_package_dict['id'] == after_package_dict['id']
+        assert after_package_dict['metadata_modified'] > before_package_dict['metadata_modified']
+        assert third_obj.current == False
+        assert second_obj.current == False
+        assert first_obj.current == True
+
+
+        source_dict = get_harvest_source(source.id)
+        assert len(source_dict['status']['packages']) == 1
 

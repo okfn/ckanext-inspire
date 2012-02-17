@@ -380,9 +380,11 @@ class InspireHarvester(object):
         Session.execute(u, params={'b_package_id':package['id']})
         Session.commit()
 
-        # Remove current objects from session, otherwise the
+        # Refresh current object from session, otherwise the
         # import paster command fails
         Session.remove()
+        Session.add(self.obj)
+        Session.refresh(self.obj)
 
         # Set reference to package in the HarvestObject and flag it as
         # the current one
@@ -391,6 +393,7 @@ class InspireHarvester(object):
 
         self.obj.current = True
         self.obj.save()
+
 
         assert gemini_guid == [e['value'] for e in package['extras'] if e['key'] == 'guid'][0]
         assert self.obj.id == [e['value'] for e in package['extras'] if e['key'] ==  'harvest_object_id'][0]
