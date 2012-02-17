@@ -212,9 +212,9 @@ class InspireHarvester(object):
                     last_harvested_object.source.active is False):
 
                 if self.force_import:
-                    log.info('Import forced for package %s' % gemini_guid)
+                    log.info('Import forced for object %s with GUID %s' % (self.obj.id,gemini_guid))
                 else:
-                    log.info('Package for %s needs to be created or updated' % gemini_guid)
+                    log.info('Package for object with GUID %s needs to be created or updated' % gemini_guid)
 
                 package = last_harvested_object.package
             else:
