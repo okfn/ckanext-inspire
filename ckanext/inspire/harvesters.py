@@ -72,7 +72,11 @@ class InspireHarvester(object):
 
     def _is_wms(self,url):
         try:
-            s = wms.WebMapService(url)
+            capabilities_url = wms.WMSCapabilitiesReader().capabilities_url(url)
+            res = urllib2.urlopen(capabilities_url,None,10)
+            xml = res.read()
+
+            s = wms.WebMapService(url,xml=xml)
             return isinstance(s.contents, dict) and s.contents != {}
         except Exception, e:
             log.error('WMS check for %s failed with exception: %s'%(url, str(e)))
