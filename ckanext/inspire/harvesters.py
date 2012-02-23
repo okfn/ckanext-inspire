@@ -229,7 +229,7 @@ class InspireHarvester(object):
             log.info('No package with GEMINI guid %s found, let''s create one' % gemini_guid)
 
         extras = {
-            'published_by': int(self.obj.source.publisher_id or 0),
+            'published_by': self.obj.source.publisher_id or '',
             'UKLP': 'True',
             'harvest_object_id': self.obj.id
         }
