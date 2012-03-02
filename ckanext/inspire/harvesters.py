@@ -271,21 +271,35 @@ class InspireHarvester(object):
 
         # Save responsible organization roles
         parties = {}
+        owners = []
+        publishers = []
         for responsible_party in gemini_values['responsible-organisation']:
 
-            # Save provider in a separate extra
-            if responsible_party['role'] == 'resourceProvider' and not 'provider' in extras:
-                extras['provider'] = responsible_party['organisation-name']
+            if responsible_party['role'] == 'owner':
+                owners.append(responsible_party['organisation-name'])
+            elif responsible_party['role'] == 'publisher':
+                publishers.append(responsible_party['organisation-name'])
 
             if responsible_party['organisation-name'] in parties:
                 if not responsible_party['role'] in parties[responsible_party['organisation-name']]:
                     parties[responsible_party['organisation-name']].append(responsible_party['role'])
             else:
                 parties[responsible_party['organisation-name']] = [responsible_party['role']]
+
         parties_extra = []
         for party_name in parties:
             parties_extra.append('%s (%s)' % (party_name, ', '.join(parties[party_name])))
         extras['responsible-party'] = '; '.join(parties_extra)
+
+        # Save provider in a separate extra:
+        # first organization to have a role of 'owner', and if there is none, first one with
+        # a role of 'publisher'
+        if len(owners):
+            extras['provider'] = owners[0]
+        elif len(publishers):
+            extras['provider'] = publishers[0]
+        else:
+            extras['provider'] = u''
 
         # Construct a GeoJSON extent so ckanext-spatial can register the extent geometry
         extent_string = self.extent_template.substitute(

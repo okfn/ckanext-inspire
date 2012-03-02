@@ -187,7 +187,7 @@ class TestHarvest(BaseCase):
             'UKLP': u'True',
             'resource-type': u'service',
             'access_constraints': u'["No restriction on public access"]',
-            'responsible-party': u'The Improvement Service (resourceProvider)',
+            'responsible-party': u'The Improvement Service (owner)',
             'provider':u'The Improvement Service',
             'contact-email': u'OSGCM@improvementservice.org.uk',
             # Spatial
@@ -292,6 +292,7 @@ class TestHarvest(BaseCase):
             'responsible-party': u'Scottish Natural Heritage (custodian, distributor)',
             'access_constraints': u'["Copyright Scottish Natural Heritage"]',
             'contact-email': u'data_supply@snh.gov.uk',
+            'provider':'',
             # Spatial
             'bbox-east-long': u'0.205857204',
             'bbox-north-lat': u'61.06066944',
@@ -318,8 +319,6 @@ class TestHarvest(BaseCase):
             if not package_dict['extras'][key] == value:
                 raise AssertionError('Unexpected value for extra %s: %s (was expecting %s)' % \
                     (key, package_dict['extras'][key], value))
-
-        assert not 'provider' in package_dict['extras']
 
         expected_resource = {
             'description': 'Test Resource Description',
