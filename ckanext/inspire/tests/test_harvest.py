@@ -10,11 +10,6 @@ from ckan.logic import get_action
 
 from ckanext.harvest.model import (setup as harvest_model_setup,
                                     HarvestSource,HarvestJob,HarvestObject)
-from ckanext.harvest.lib import (create_harvest_source,
-                                 create_harvest_job,
-                                 import_last_objects,
-                                 get_harvest_source)
-
 from ckanext.inspire.harvesters import GeminiHarvester, GeminiDocHarvester, GeminiWafHarvester
 
 from simple_http_server import serve
@@ -40,6 +35,7 @@ class TestHarvest(BaseCase):
         harvest_user = model.User(name=u'harvest', password=u'test')
         model.add_user_to_role(harvest_user, model.Role.ADMIN, model.System())
         Session.add(harvest_user)
+        Session.commit()
 
         self.context ={'model':model,
                        'session':Session,
@@ -50,7 +46,7 @@ class TestHarvest(BaseCase):
 
     def _create_job(self,source_id):
         # Create a job
-        job_dict = create_harvest_job(source_id)
+        job_dict=get_action('harvest_job_create')(self.context,{'source_id':source_id})
         job = HarvestJob.get(job_dict['id'])
         assert job
 
@@ -58,7 +54,7 @@ class TestHarvest(BaseCase):
 
     def _create_source_and_job(self,source_fixture):
 
-        source_dict = create_harvest_source(source_fixture)
+        source_dict=get_action('harvest_source_create')(self.context,source_fixture)
         source = HarvestSource.get(source_dict['id'])
         assert source
 
@@ -187,7 +183,7 @@ class TestHarvest(BaseCase):
             'UKLP': u'True',
             'resource-type': u'service',
             'access_constraints': u'["No restriction on public access"]',
-            'responsible-party': u'The Improvement Service (resourceProvider)',
+            'responsible-party': u'The Improvement Service (owner)',
             'provider':u'The Improvement Service',
             'contact-email': u'OSGCM@improvementservice.org.uk',
             # Spatial
@@ -292,6 +288,7 @@ class TestHarvest(BaseCase):
             'responsible-party': u'Scottish Natural Heritage (custodian, distributor)',
             'access_constraints': u'["Copyright Scottish Natural Heritage"]',
             'contact-email': u'data_supply@snh.gov.uk',
+            'provider':'',
             # Spatial
             'bbox-east-long': u'0.205857204',
             'bbox-north-lat': u'61.06066944',
@@ -318,8 +315,6 @@ class TestHarvest(BaseCase):
             if not package_dict['extras'][key] == value:
                 raise AssertionError('Unexpected value for extra %s: %s (was expecting %s)' % \
                     (key, package_dict['extras'][key], value))
-
-        assert not 'provider' in package_dict['extras']
 
         expected_resource = {
             'description': 'Test Resource Description',
@@ -618,8 +613,7 @@ class TestHarvest(BaseCase):
         third_obj = self._run_job_for_single_document(third_job)
 
         # Run the import command manually
-        imported_objects = import_last_objects(source.id)
-
+        imported_objects = get_action('harvest_objects_import')(self.context,{'source_id':source.id})
         Session.remove()
         Session.add(first_obj)
         Session.add(second_obj)
@@ -629,7 +623,7 @@ class TestHarvest(BaseCase):
         Session.refresh(second_obj)
         Session.refresh(third_obj)
 
-        after_package_dict = get_action('package_show_rest')(self.context,{'id':imported_objects[0].package_id})
+        after_package_dict = get_action('package_show_rest')(self.context,{'id':imported_objects[0]['package_id']})
 
         # Package was updated, and the current object remains the same
         assert after_package_dict, before_package_dict['id'] == after_package_dict['id']
@@ -639,6 +633,6 @@ class TestHarvest(BaseCase):
         assert first_obj.current == True
 
 
-        source_dict = get_harvest_source(source.id)
+        source_dict = get_action('harvest_source_show')(self.context,{'id':source.id})
         assert len(source_dict['status']['packages']) == 1
 
