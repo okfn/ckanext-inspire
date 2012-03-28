@@ -396,7 +396,6 @@ class TestHarvest(BaseCase):
 
         assert 'Validation error' in message
         assert 'Validating against gemini2 profile failed' in message
-        assert 'The metadata point of contact role shall be \'pointOfContact\'' in message
         assert 'One email address shall be provided' in message
         assert 'Service type shall be one of \'discovery\', \'view\', \'download\', \'transformation\', \'invoke\' or \'other\' following INSPIRE generic names' in message
         assert 'Limitations on public access code list value shall be \'otherRestrictions\'' in message
