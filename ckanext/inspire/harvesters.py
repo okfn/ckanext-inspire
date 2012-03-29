@@ -29,8 +29,9 @@ from ckan.model import Session, repo, \
 from ckan.lib.munge import munge_title_to_name
 from ckan.plugins.core import SingletonPlugin, implements
 from ckan.lib.helpers import json
+
+from ckan import logic
 from ckan.logic import get_action, ValidationError
-from ckan.logic.schema import default_package_schema, default_tags_schema
 from ckan.lib.navl.validators import not_empty
 
 from ckanext.harvest.interfaces import IHarvester
@@ -456,10 +457,13 @@ class InspireHarvester(object):
                     ]
         }
         '''
-
         # The default package schema does not like Upper case tags
-        tag_schema = default_tags_schema()
-        package_schema = default_package_schema()
+        tag_schema = logic.schema.default_tags_schema()
+
+        if not package:
+            package_schema = logic.schema.default_create_package_schema()
+        else:
+            package_schema = logic.schema.default_update_package_schema()
 
         tag_schema['name'] = [not_empty,unicode]
         package_schema['tags'] = tag_schema
@@ -469,8 +473,8 @@ class InspireHarvester(object):
                    'session':Session,
                    'user':'harvest',
                    'schema':package_schema,
-                   'extras_as_string':True}
-
+                   'extras_as_string':True,
+                   'api_version': '1'}
         if not package:
             # We need to explicitly provide a package ID, otherwise ckanext-spatial
             # won't be be able to link the extent to the package.

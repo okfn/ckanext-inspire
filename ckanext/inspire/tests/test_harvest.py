@@ -39,7 +39,8 @@ class TestHarvest(BaseCase):
 
         self.context ={'model':model,
                        'session':Session,
-                       'user':u'harvest'}
+                       'user':u'harvest',
+                       'api_version': '2'}
 
     def teardown(self):
        model.repo.rebuild_db()
