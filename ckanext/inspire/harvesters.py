@@ -32,7 +32,7 @@ from ckan.lib.helpers import json
 
 from ckan import logic
 from ckan.logic import get_action, ValidationError
-from ckan.lib.navl.validators import not_empty
+from ckan.lib.navl.validators import not_empty, ignore_missing
 
 from ckanext.harvest.interfaces import IHarvester
 from ckanext.harvest.model import HarvestObject, HarvestGatherError, \
@@ -192,15 +192,11 @@ class InspireHarvester(object):
                             .all()
 
         if len(last_harvested_object) == 1:
-
             last_harvested_object = last_harvested_object[0]
-
-            if last_harvested_object.package.state == u'deleted':
-                raise Exception('You are trying to update a deleted document, ' + \
-                                'please change its GUID (%s) if you want to recreate it' % gemini_guid)
-        elif len(last_harvested_object) == 2:
+        elif len(last_harvested_object) > 1:
                 raise Exception('Application Error: more than one current record for GUID %s' % gemini_guid)
 
+        reactivate_package = False
         if last_harvested_object:
             # We've previously harvested this (i.e. it's an update)
 
@@ -218,6 +214,17 @@ class InspireHarvester(object):
                     log.info('Package for object with GUID %s needs to be created or updated' % gemini_guid)
 
                 package = last_harvested_object.package
+
+                # If the package has a deleted state, we will only update it and reactivate it if the
+                # new document has a more recent modified date
+                if package.state == u'deleted':
+                    if last_harvested_object.metadata_modified_date < self.obj.metadata_modified_date:
+                        log.info('Package for object with GUID %s will be re-activated' % gemini_guid)
+                        reactivate_package = True
+                    else:
+                         log.info('Remote record with GUID %s is not more recent than a deleted package, skipping... ' % gemini_guid)
+                         return None
+
             else:
                 if last_harvested_object.content != self.obj.content and \
                  last_harvested_object.metadata_modified_date == self.obj.metadata_modified_date:
@@ -323,6 +330,9 @@ class InspireHarvester(object):
             'tags': tags,
             'resources':[]
         }
+
+        if reactivate_package:
+            package_dict['state'] = u'active'
 
         if package is None or package.title != gemini_values['title']:
             name = self.gen_new_name(gemini_values['title'])
@@ -457,14 +467,14 @@ class InspireHarvester(object):
                     ]
         }
         '''
-        # The default package schema does not like Upper case tags
-        tag_schema = logic.schema.default_tags_schema()
 
         if not package:
             package_schema = logic.schema.default_create_package_schema()
         else:
             package_schema = logic.schema.default_update_package_schema()
 
+        # The default package schema does not like Upper case tags
+        tag_schema = logic.schema.default_tags_schema()
         tag_schema['name'] = [not_empty,unicode]
         package_schema['tags'] = tag_schema
 

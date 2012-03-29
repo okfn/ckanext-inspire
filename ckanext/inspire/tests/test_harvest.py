@@ -503,24 +503,52 @@ class TestHarvest(BaseCase):
         self.context.update({'id':first_package_dict['id']})
         updated_package_dict = get_action('package_update_rest')(self.context,first_package_dict)
 
-        # Create and run a second job, an exception should be raised
-        # and the package should not be updated
+        # Create and run a second job, the date has not changed, so the package should not be updated
+        # and remain deleted
         first_job.status = u'Finished'
         first_job.save()
         second_job = self._create_job(source.id)
 
-        second_obj = self._run_job_for_single_document(second_job, expect_obj_errors=True)
-
-        assert len(second_obj.errors) == 1
-        assert 'You are trying to update a deleted document, please change its GUID' in second_obj.errors[0].message
+        second_obj = self._run_job_for_single_document(second_job)
 
         second_package_dict = get_action('package_show_rest')(self.context,{'id':first_obj.package_id})
 
         # Package was not updated
         assert second_package_dict, updated_package_dict['id'] == second_package_dict['id']
-        assert updated_package_dict['metadata_modified'] == second_package_dict['metadata_modified']
         assert not second_obj.package, not second_obj.package_id
         assert second_obj.current == False, first_obj.current == True
+
+
+        # Harvest an updated document, with a more recent modified date, package should be
+        # updated and reactivated
+        source.url = u'http://127.0.0.1:8999/single/service1_newer.xml'
+        source.save()
+
+        third_job = self._create_job(source.id)
+
+        third_obj = self._run_job_for_single_document(third_job)
+
+        third_package_dict = get_action('package_show_rest')(self.context,{'id':first_obj.package_id})
+
+        Session.remove()
+        Session.add(first_obj)
+        Session.add(second_obj)
+        Session.add(third_obj)
+
+        Session.refresh(first_obj)
+        Session.refresh(second_obj)
+        Session.refresh(third_obj)
+
+        # Package was updated
+        assert third_package_dict, third_package_dict['id'] == second_package_dict['id']
+        assert third_obj.package, third_obj.package
+        assert third_obj.current == True, second_obj.current == False
+        assert first_obj.current == False
+
+        assert 'NEWER' in third_package_dict['title']
+        assert third_package_dict['state'] == u'active'
+
+
 
     def test_harvest_different_sources_same_document(self):
 
