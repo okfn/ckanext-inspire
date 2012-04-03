@@ -1,10 +1,13 @@
 from datetime import datetime,date
 from ckan import plugins
 
+from ckan.lib.base import config
+
 from ckan import model
 from ckan.model import Session,Package
 from ckan.tests import BaseCase
 
+from ckan.logic.schema import default_update_package_schema
 from ckan.logic import get_action
 
 
@@ -37,25 +40,39 @@ class TestHarvest(BaseCase):
         Session.add(harvest_user)
         Session.commit()
 
+        package_schema = default_update_package_schema()
         self.context ={'model':model,
                        'session':Session,
                        'user':u'harvest',
+                       'schema':package_schema,
                        'api_version': '2'}
+
 
     def teardown(self):
        model.repo.rebuild_db()
 
     def _create_job(self,source_id):
         # Create a job
-        job_dict=get_action('harvest_job_create')(self.context,{'source_id':source_id})
+        context ={'model':model,
+                 'session':Session,
+                 'user':u'harvest'}
+
+        job_dict=get_action('harvest_job_create')(context,{'source_id':source_id})
         job = HarvestJob.get(job_dict['id'])
         assert job
 
         return job
 
     def _create_source_and_job(self,source_fixture):
+        context ={'model':model,
+                 'session':Session,
+                 'user':u'harvest'}
 
-        source_dict=get_action('harvest_source_create')(self.context,source_fixture)
+        if config.get('ckan.harvest.auth.profile') == u'publisher' \
+           and not 'publisher_id' in source_fixture:
+           source_fixture['publisher_id'] = self.publisher.id
+
+        source_dict=get_action('harvest_source_create')(context,source_fixture)
         source = HarvestSource.get(source_dict['id'])
         assert source
 
