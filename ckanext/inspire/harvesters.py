@@ -331,6 +331,10 @@ class InspireHarvester(object):
             'resources':[]
         }
 
+        if self.obj.source.publisher_id:
+            package_dict['groups'] = [{'id':self.obj.source.publisher_id}]
+
+
         if reactivate_package:
             package_dict['state'] = u'active'
 
@@ -484,7 +488,7 @@ class InspireHarvester(object):
                    'user':'harvest',
                    'schema':package_schema,
                    'extras_as_string':True,
-                   'api_version': '1'}
+                   'api_version': '2'}
         if not package:
             # We need to explicitly provide a package ID, otherwise ckanext-spatial
             # won't be be able to link the extent to the package.

@@ -47,6 +47,23 @@ class TestHarvest(BaseCase):
                        'schema':package_schema,
                        'api_version': '2'}
 
+        if config.get('ckan.harvest.auth.profile') == u'publisher':
+            # Create a publisher user
+            rev = model.repo.new_revision()
+            self.publisher_user = model.User(name=u'test-publisher-user',password=u'test')
+            self.publisher = model.Group(name=u'test-publisher',title=u'Test Publihser',type=u'publisher')
+            Session.add(self.publisher_user)
+            Session.add(self.publisher)
+
+            Session.commit()
+
+            member = model.Member(table_name = 'user',
+                             table_id = self.publisher_user.id,
+                             group=self.publisher,
+                             capacity='admin')
+            Session.add(member)
+
+            Session.commit()
 
     def teardown(self):
        model.repo.rebuild_db()
@@ -194,6 +211,9 @@ class TestHarvest(BaseCase):
                 raise AssertionError('Unexpected value for %s: %s (was expecting %s)' % \
                     (key, package_dict[key], value))
 
+        if config.get('ckan.harvest.auth.profile') == u'publisher':
+            assert package_dict['groups'] == [self.publisher.id]
+
         expected_extras = {
             # Basic
             'harvest_object_id': obj.id,
@@ -297,6 +317,9 @@ class TestHarvest(BaseCase):
             if not package_dict[key] == value:
                 raise AssertionError('Unexpected value for %s: %s (was expecting %s)' % \
                     (key, package_dict[key], value))
+
+        if config.get('ckan.harvest.auth.profile') == u'publisher':
+            assert package_dict['groups'] == [self.publisher.id]
 
         expected_extras = {
             # Basic
