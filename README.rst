@@ -1,9 +1,8 @@
-----------------------
 CKAN INSPIRE extension
 ======================
 
 Harvesters
-==========
+----------
 
 This extension contains these harvesters for specific formats specified by INSPIRE:
  * GeminiHarvester - CSW servers with support for the GEMINI metadata profile
@@ -16,7 +15,7 @@ Each contains code to do the three stages of harvesting:
  * import_stage - validates the Gemini, converts it to a CKAN Package and saves it in CKAN
  
 Controllers
-===========
+-----------
 
 (Enabled with the ``ckan.plugins = inspire_api``)
 
@@ -27,7 +26,7 @@ To view the harvest objects in the web interface, these controller locations are
 
 
 Install & Configuration
-=======================
+-----------------------
 
 To install this extension's code into your pyenv::
 
