@@ -38,8 +38,8 @@ You also need the dependencies::
 
 To enable it, in your CKAN config add to ckan.plugins items, as follows::
 
- ckan.plugins = inspire_api, gemini_harvester, gemini_doc_harvester, gemini_waf_harvester
+ ckan.plugins = inspire_api gemini_harvester gemini_doc_harvester gemini_waf_harvester
 
 To change the validation profiles, set this option in your CKAN config::
 
- ckan.inspire.validator.profiles = iso19139, gemini2, constraints
+ ckan.inspire.validator.profiles = iso19139,gemini2,constraints
