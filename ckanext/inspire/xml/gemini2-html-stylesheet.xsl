@@ -35,7 +35,7 @@ doesn't deal with gco:nilReason
 				<!-- insert the required CSS stylesheet in here -->
 				<!-- e.g. http://intranet.ordsvy.gov.uk/intranet/css/style.css; http://www.ordnancesurvey.co.uk/oswebsite/a/css/global/screen.css; http://location.defra.gov.uk/wp-content/themes/uklocation2/style.css; http://data.gov.uk/sites/default/files/css/css_523a702a5fae8f07ad6cce1f9cf4efce.css -->
 				<!-- of these, data.gov.uk worked the best, because the h1 was distinct - but the site has now changed. It would be better to have the h2,h3,h4,h5 as left aligned, with the p to the right & on the same line - perhaps divs? with a few classes? perhaps (dare I say it?) as tables, with the element name in the left column, value in the right? -->
-				<link rel="stylesheet" href="http://data.gov.uk/sites/default/files/css/css_523a702a5fae8f07ad6cce1f9cf4efce.css" type="text/css" media="screen"/>
+		<!--Removed, as link is broken & css lost		<link rel="stylesheet" href="/css/css_523a702a5fae8f07ad6cce1f9cf4efce.css" type="text/css" media="screen"/> -->
 			</head>
 			<body>
 				<xsl:apply-templates select="gmd:MD_Metadata"/>

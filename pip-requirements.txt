@@ -1,4 +1,4 @@
--e hg+https://bitbucket.org/okfn/ckanext-csw#egg=ckanext-csw
--e hg+https://bitbucket.org/okfn/ckanext-harvest#egg=ckanext-harvest
--e hg+https://bitbucket.org/okfn/ckanext-spatial#egg=ckanext-spatial
+-e hg+https://github.com/okfn/ckanext-csw#egg=ckanext-csw
+-e hg+https://github.com/okfn/ckanext-harvest#egg=ckanext-harvest
+-e hg+https://github.com/okfn/ckanext-spatial#egg=ckanext-spatial
 
