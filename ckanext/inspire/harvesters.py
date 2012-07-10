@@ -509,14 +509,18 @@ class InspireHarvester(object):
         return package_dict
 
     def get_gemini_string_and_guid(self,content,url=None):
+
         xml = etree.fromstring(content)
 
         # The validator and GeminiDocument don't like the container
-        metadata_tag = '{http://www.isotc211.org/2005/gmd}MD_Metadata'
-        if xml.tag == metadata_tag:
+        metadata_tags = ['{http://www.isotc211.org/2005/gmd}MD_Metadata','{http://www.isotc211.org/2005/gmi}MI_Metadata']
+        if xml.tag in metadata_tags:
             gemini_xml = xml
         else:
-            gemini_xml = xml.find(metadata_tag)
+            for metadata_tag in metadata_tags:
+                gemini_xml = xml.find(metadata_tag)
+                if gemini_xml:
+                    break
 
         if gemini_xml is None:
             self._save_gather_error('Content is not a valid Gemini document',self.harvest_job)
@@ -613,7 +617,7 @@ class GeminiHarvester(InspireHarvester,SingletonPlugin):
 
         identifier = harvest_object.guid
         try:
-            record = self.csw.getrecordbyid([identifier])
+            record = self.csw.getrecordbyid([identifier],outputschema="gmi")
         except Exception, e:
             self._save_object_error('Error getting the CSW record with GUID %s' % identifier,harvest_object)
             return False
