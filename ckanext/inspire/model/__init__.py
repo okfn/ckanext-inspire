@@ -252,7 +252,8 @@ class GeminiReferenceDate(GeminiElement):
                 "gmd:date/gco:Date/text()",
                 "gmd:date/gco:DateTime/text()",
             ],
-            multiplicity="1",
+            # TODO: check
+            multiplicity="*",
         ),
     ]
 
