@@ -308,7 +308,7 @@ class GeminiDocument(MappedXmlDocument):
                 "gmd:hierarchyLevel/gmd:MD_ScopeCode/@codeListValue",
                 "gmd:hierarchyLevel/gmd:MD_ScopeCode/text()",
             ],
-            multiplicity="1",
+            multiplicity="0..1",
         ),
         GeminiResponsibleParty(
             name="metadata-point-of-contact",
