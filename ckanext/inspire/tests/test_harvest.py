@@ -1,4 +1,6 @@
 from datetime import datetime,date
+import logging
+
 from ckan import plugins
 
 from ckan.lib.base import config
@@ -10,12 +12,15 @@ from ckan.tests import BaseCase
 from ckan.logic.schema import default_update_package_schema
 from ckan.logic import get_action
 
+import ckanext.inspire
+ckanext.inspire.harvesters.log = logging.getLogger('ckanext.inspire.harvesters')
 
 from ckanext.harvest.model import (setup as harvest_model_setup,
                                     HarvestSource,HarvestJob,HarvestObject)
 from ckanext.inspire.harvesters import GeminiHarvester, GeminiDocHarvester, GeminiWafHarvester
 
 from simple_http_server import serve
+
 
 class TestHarvest(BaseCase):
 
@@ -653,6 +658,91 @@ class TestHarvest(BaseCase):
         assert third_obj.current == True
         assert second_obj.current == False
         assert first_obj.current == False
+
+
+    def test_harvest_different_sources_same_document_but_deleted_inbetween(self):
+
+        # Create source1
+        source1_fixture = {
+            'url': u'http://127.0.0.1:8999/single/source1/same_dataset.xml',
+            'type': u'gemini-single'
+        }
+
+        source1, first_job = self._create_source_and_job(source1_fixture)
+
+        first_obj = self._run_job_for_single_document(first_job)
+
+        first_package_dict = get_action('package_show_rest')(self.context,{'id':first_obj.package_id})
+
+        # Package was created
+        assert first_package_dict
+        assert first_package_dict['state'] == u'active'
+        assert first_obj.current == True
+
+        # Delete/withdraw the package
+        first_package_dict = get_action('package_delete')(self.context,{'id':first_obj.package_id})
+        first_package_dict = get_action('package_show_rest')(self.context,{'id':first_obj.package_id})
+
+        # Harvest the same document, unchanged, from another source
+        source2_fixture = {
+            'url': u'http://127.0.0.1:8999/single/source2/same_dataset.xml',
+            'type': u'gemini-single'
+        }
+
+        source2, second_job = self._create_source_and_job(source2_fixture)
+
+        second_obj = self._run_job_for_single_document(second_job)
+
+        second_package_dict = get_action('package_show_rest')(self.context,{'id':first_obj.package_id})
+
+        # It would be good if the package was updated, but we see that it isn't
+        assert second_package_dict, first_package_dict['id'] == second_package_dict['id']
+        assert second_package_dict['metadata_modified'] == first_package_dict['metadata_modified']
+        assert not second_obj.package
+        assert second_obj.current == False
+        assert first_obj.current == True
+
+
+    def test_harvest_moves_sources(self):
+
+        # Create source1
+        source1_fixture = {
+            'url': u'http://127.0.0.1:8999/single/service1.xml',
+            'type': u'gemini-single'
+        }
+
+        source1, first_job = self._create_source_and_job(source1_fixture)
+
+        first_obj = self._run_job_for_single_document(first_job)
+
+        first_package_dict = get_action('package_show_rest')(self.context,{'id':first_obj.package_id})
+
+        # Package was created
+        assert first_package_dict
+        assert first_package_dict['state'] == u'active'
+        assert first_obj.current == True
+
+        # Harvest the same document GUID but with a newer date, from another source. 
+        source2_fixture = {
+            'url': u'http://127.0.0.1:8999/single/service1_newer.xml',
+            'type': u'gemini-single'
+        }
+
+        source2, second_job = self._create_source_and_job(source2_fixture)
+
+        second_obj = self._run_job_for_single_document(second_job)
+
+        second_package_dict = get_action('package_show_rest')(self.context,{'id':first_obj.package_id})
+
+        # Now we have two packages
+        assert second_package_dict, first_package_dict['id'] == second_package_dict['id']
+        assert second_package_dict['metadata_modified'] > first_package_dict['metadata_modified']
+        assert second_obj.package
+        assert second_obj.current == True
+        assert first_obj.current == True
+        # so currently, if you move a Gemini between harvest sources you need
+        # to update the date to get it to reharvest, and then you should
+        # withdraw the package relating to the original harvest source.
 
 
     def test_harvest_import_command(self):

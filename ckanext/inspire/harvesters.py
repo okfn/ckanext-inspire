@@ -16,7 +16,6 @@ from string import Template
 from numbers import Number
 import sys
 import logging
-log = logging.getLogger(__name__)
 
 from pylons import config
 from sqlalchemy.sql import update,and_, bindparam
@@ -41,6 +40,8 @@ from ckanext.harvest.model import HarvestObject, HarvestGatherError, \
 from ckanext.inspire.model import GeminiDocument
 
 from owslib import wms
+
+log = logging.getLogger(__name__)
 
 try:
     from ckanext.csw.services import CswService
@@ -125,6 +126,8 @@ class InspireHarvester(object):
 
     # All three harvesters share the same import stage
     def import_stage(self,harvest_object):
+        log = logging.getLogger(__name__ + '.import')
+        log.debug('Import stage for harvest object: %r', harvest_object)
 
         if not harvest_object:
             log.error('No harvest object received')
@@ -147,6 +150,7 @@ class InspireHarvester(object):
                 self._save_object_error('Error importing Gemini document: %s' % str(e), harvest_object, 'Import')
 
     def import_gemini_object(self, gemini_string):
+        log = logging.getLogger(__name__ + '.import')
         xml = etree.fromstring(gemini_string)
 
         if not self.validator:
@@ -168,6 +172,7 @@ class InspireHarvester(object):
         '''Create or update a Package based on some content that has
         come from a URL.
         '''
+        log = logging.getLogger(__name__ + '.import')
         package = None
         gemini_document = GeminiDocument(content)
         gemini_values = gemini_document.read_values()
@@ -552,8 +557,9 @@ class GeminiHarvester(InspireHarvester,SingletonPlugin):
             'description': 'A server that implements OGC\'s Catalog Service for the Web (CSW) standard'
             }
 
-    def gather_stage(self,harvest_job):
-        log.debug('In GeminiHarvester gather_stage')
+    def gather_stage(self, harvest_job):
+        log = logging.getLogger(__name__ + '.CSW.gather')
+        log.debug('GeminiHarvester gather_stage for job: %r', harvest_job)
         # Get source URL
         url = harvest_job.source.url
 
@@ -601,6 +607,9 @@ class GeminiHarvester(InspireHarvester,SingletonPlugin):
         return ids
 
     def fetch_stage(self,harvest_object):
+        log = logging.getLogger(__name__ + '.CSW.fetch')
+        log.debug('GeminiHarvester fetch_stage for object: %r', harvest_object)
+
         url = harvest_object.source.url
         # Setup CSW server
         try:
@@ -648,7 +657,8 @@ class GeminiDocHarvester(InspireHarvester,SingletonPlugin):
             }
 
     def gather_stage(self,harvest_job):
-        log.debug('In GeminiDocHarvester gather_stage')
+        log = logging.getLogger(__name__ + '.individual.gather')
+        log.debug('GeminiDocHarvester gather_stage for job: %r', harvest_job)
 
         self.harvest_job = harvest_job
 
@@ -705,7 +715,8 @@ class GeminiWafHarvester(InspireHarvester,SingletonPlugin):
             }
 
     def gather_stage(self,harvest_job):
-        log.debug('In GeminiWafHarvester gather_stage')
+        log = logging.getLogger(__name__ + '.WAF.gather')
+        log.debug('GeminiWafHarvester gather_stage for job: %r', harvest_job)
 
         self.harvest_job = harvest_job
 
