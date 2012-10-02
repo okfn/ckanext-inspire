@@ -617,7 +617,8 @@ class GeminiHarvester(InspireHarvester,SingletonPlugin):
 
         identifier = harvest_object.guid
         try:
-            record = self.csw.getrecordbyid([identifier],outputschema="gmi")
+            # TODO: investigate support for both gmd:MD_Metadata or gmi:MI_Metadata
+            record = self.csw.getrecordbyid([identifier])
         except Exception, e:
             self._save_object_error('Error getting the CSW record with GUID %s' % identifier,harvest_object)
             return False
