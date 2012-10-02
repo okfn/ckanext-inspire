@@ -592,7 +592,7 @@ class GeminiHarvester(InspireHarvester,SingletonPlugin):
                     continue
 
         except Exception, e:
-            self._save_gather_error('Error gathering the identifiers from the CSW server [%r]' % e, harvest_job)
+            self._save_gather_error('Error gathering the identifiers from the CSW server [%s]' % str(e), harvest_job)
             return None
 
         if len(ids) == 0:
