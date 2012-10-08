@@ -15,6 +15,7 @@ from datetime import datetime
 from string import Template
 from numbers import Number
 import sys
+import uuid
 import logging
 log = logging.getLogger(__name__)
 
@@ -25,7 +26,7 @@ from sqlalchemy.exc import InvalidRequestError
 from ckan import model
 from ckan.model import Session, repo, \
                         Package, Resource, PackageExtra, \
-                        setup_default_user_roles, make_uuid
+                        setup_default_user_roles
 from ckan.lib.munge import munge_title_to_name
 from ckan.plugins.core import SingletonPlugin, implements
 from ckan.lib.helpers import json
@@ -492,7 +493,7 @@ class InspireHarvester(object):
         if not package:
             # We need to explicitly provide a package ID, otherwise ckanext-spatial
             # won't be be able to link the extent to the package.
-            package_dict['id'] = make_uuid()
+            package_dict['id'] = unicode(uuid.uuid4())
             package_schema['id'] = [unicode]
 
             action_function = get_action('package_create')
@@ -591,7 +592,7 @@ class GeminiHarvester(InspireHarvester,SingletonPlugin):
                     continue
 
         except Exception, e:
-            self._save_gather_error('Error gathering the identifiers from the CSW server [%r]' % e, harvest_job)
+            self._save_gather_error('Error gathering the identifiers from the CSW server [%s]' % str(e), harvest_job)
             return None
 
         if len(ids) == 0:
