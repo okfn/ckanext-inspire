@@ -63,6 +63,8 @@ def text_traceback():
     return res
 
 class InspireHarvester(object):
+    # Q: Why does this not inherit from HarvesterBase in ckanext-harvest?
+
     csw=None
 
     validator=None
@@ -98,7 +100,6 @@ class InspireHarvester(object):
         ]
         self.validator = Validator(profiles=profiles)
 
-
     def _save_gather_error(self,message,job):
         err = HarvestGatherError(message=message,job=job)
         try:
@@ -126,7 +127,7 @@ class InspireHarvester(object):
 
 
     # All three harvesters share the same import stage
-    def import_stage(self,harvest_object):
+    def import_stage(self, harvest_object):
         log = logging.getLogger(__name__ + '.import')
         log.debug('Import stage for harvest object: %r', harvest_object)
 
