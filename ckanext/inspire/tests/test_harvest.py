@@ -1,5 +1,4 @@
 from datetime import datetime, date
-from simple_http_server import serve
 import lxml
 
 from nose.tools import assert_equal, assert_in
@@ -13,11 +12,15 @@ from ckan.logic import get_action
 import ckanext.inspire
 from ckanext.harvest.model import (setup as harvest_model_setup,
                                     HarvestSource,HarvestJob,HarvestObject)
-from ckanext.inspire.harvesters import GeminiCswHarvester, GeminiDocHarvester, GeminiWafHarvester
+from ckanext.csw.validation import Validator
+from ckanext.inspire.harvesters import GeminiCswHarvester, GeminiDocHarvester, GeminiWafHarvester, SpatialHarvester
 from ckanext.csw.validation import SchematronValidator
 
+from simple_http_server import serve
 
 class HarvestFixtureBase:
+
+    serving = False
 
     @classmethod
     def setup_class(cls):
@@ -25,7 +28,9 @@ class HarvestFixtureBase:
         harvest_model_setup()
 
         # Start simple HTTP server
-        serve()
+        if not cls.serving:
+            serve()
+            cls.serving = True
 
     @classmethod
     def teardown_class(cls):
@@ -127,6 +132,11 @@ class HarvestFixtureBase:
         return obj
 
 class TestHarvest(HarvestFixtureBase):
+
+    @classmethod
+    def setup_class(cls):
+        SpatialHarvester._validator = Validator(profiles=['iso19139','gemini2'])
+        HarvestFixtureBase.setup_class()
 
     def test_harvest_basic(self):
 
@@ -385,8 +395,13 @@ class TestHarvest(HarvestFixtureBase):
 
         harvester = GeminiDocHarvester()
 
-        object_ids = harvester.gather_stage(job)
-        assert object_ids is None
+        try:
+            object_ids = harvester.gather_stage(job)
+        except lxml.etree.XMLSyntaxError:
+            # this only occurs in debug_exception_mode
+            pass
+        else:
+            assert object_ids is None
 
         # Check gather errors
         assert len(job.gather_errors) == 1
@@ -435,12 +450,12 @@ class TestHarvest(HarvestFixtureBase):
 
         message = job.gather_errors[0].message
 
-        assert 'Validation error' in message
-        assert 'Validating against gemini2 profile failed' in message
-        assert 'One email address shall be provided' in message
-        assert 'Service type shall be one of \'discovery\', \'view\', \'download\', \'transformation\', \'invoke\' or \'other\' following INSPIRE generic names' in message
-        assert 'Limitations on public access code list value shall be \'otherRestrictions\'' in message
-        assert 'One organisation name shall be provided' in message
+        assert_in('Validation error', message)
+        assert_in('Validating against "GEMINI2 Schematron 1.2" profile failed', message)
+        assert_in('One email address shall be provided', message)
+        assert_in('Service type shall be one of \'discovery\', \'view\', \'download\', \'transformation\', \'invoke\' or \'other\' following INSPIRE generic names', message)
+        assert_in('Limitations on public access code list value shall be \'otherRestrictions\'', message)
+        assert_in('One organisation name shall be provided', message)
 
         # Fetch stage always returns True for Single Doc harvesters
         assert harvester.fetch_stage(object_ids) == True
@@ -790,7 +805,22 @@ class TestHarvest(HarvestFixtureBase):
         assert len(source_dict['status']['packages']) == 1
 
 
+validation_error_xml = '''
+<root xmlns:svrl="http://purl.oclc.org/dsdl/svrl">
+  <svrl:failed-assert test="srv:serviceType/*[1] = 'discovery' or srv:serviceType/*[1] = 'view' or srv:serviceType/*[1] = 'download' or srv:serviceType/*[1] = 'transformation' or srv:serviceType/*[1] = 'invoke' or srv:serviceType/*[1] = 'other'" location="/*[local-name()='MD_Metadata' and namespace-uri()='http://www.isotc211.org/2005/gmd']/*[local-name()='identificationInfo' and namespace-uri()='http://www.isotc211.org/2005/gmd']/*[local-name()='SV_ServiceIdentification' and namespace-uri()='http://www.isotc211.org/2005/srv']">
+    <svrl:text>
+        Service type shall be one of 'discovery', 'view', 'download', 'transformation', 'invoke' or 'other' following INSPIRE generic names.
+      </svrl:text>
+  </svrl:failed-assert>
+</root>
+'''
+
 class TestValidation(HarvestFixtureBase):
+
+    @classmethod
+    def setup_class(cls):
+        SpatialHarvester._validator = Validator(profiles=['iso19139', 'constraints', 'gemini2'])
+        HarvestFixtureBase.setup_class()
 
     def get_validation_errors(self, validation_test_filename):
         # Create source
@@ -811,16 +841,7 @@ class TestValidation(HarvestFixtureBase):
         return errors
 
     def test_schematron_error_extraction(self):
-        namespace_map = {'svrl': 'http://purl.oclc.org/dsdl/svrl'}
-        failure_xml = lxml.etree.fromstring('''
-<root xmlns:svrl="%(svrl)s">
-  <svrl:failed-assert test="srv:serviceType/*[1] = 'discovery' or srv:serviceType/*[1] = 'view' or srv:serviceType/*[1] = 'download' or srv:serviceType/*[1] = 'transformation' or srv:serviceType/*[1] = 'invoke' or srv:serviceType/*[1] = 'other'" location="/*[local-name()='MD_Metadata' and namespace-uri()='http://www.isotc211.org/2005/gmd']/*[local-name()='identificationInfo' and namespace-uri()='http://www.isotc211.org/2005/gmd']/*[local-name()='SV_ServiceIdentification' and namespace-uri()='http://www.isotc211.org/2005/srv']">
-    <svrl:text>
-        Service type shall be one of 'discovery', 'view', 'download', 'transformation', 'invoke' or 'other' following INSPIRE generic names.
-      </svrl:text>
-  </svrl:failed-assert>
-</root>
-''' % namespace_map)
+        failure_xml = lxml.etree.fromstring(validation_error_xml)
         fail_element = failure_xml.getchildren()[0]
         details = SchematronValidator.extract_error_details(fail_element)
         assert_in("srv:serviceType/*[1] = 'discovery'", details)

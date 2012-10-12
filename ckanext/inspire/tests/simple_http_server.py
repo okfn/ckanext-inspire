@@ -8,7 +8,8 @@ from threading import Thread
 PORT = 8999
 
 def serve(port=PORT):
-
+    '''Serves test files over HTTP'''
+    
     # Make sure we serve from the tests directory
     os.chdir(os.path.dirname(os.path.abspath( __file__ )))
 
