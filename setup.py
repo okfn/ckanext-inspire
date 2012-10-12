@@ -26,7 +26,7 @@ setup(
     [ckan.plugins]
     # Add plugins here
     inspire_api=ckanext.inspire.plugin:InspireApi
-    gemini_harvester=ckanext.inspire.harvesters:GeminiHarvester
+    gemini_csw_harvester=ckanext.inspire.harvesters:GeminiCswHarvester
     gemini_doc_harvester=ckanext.inspire.harvesters:GeminiDocHarvester
     gemini_waf_harvester=ckanext.inspire.harvesters:GeminiWafHarvester
     """,

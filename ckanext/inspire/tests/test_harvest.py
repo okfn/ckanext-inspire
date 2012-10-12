@@ -1,32 +1,26 @@
-from datetime import datetime,date
-import logging
+from datetime import datetime, date
+from simple_http_server import serve
+import lxml
+
+from nose.tools import assert_equal, assert_in
 
 from ckan import plugins
-
 from ckan.lib.base import config
-
 from ckan import model
 from ckan.model import Session,Package
-from ckan.tests import BaseCase
-
 from ckan.logic.schema import default_update_package_schema
 from ckan.logic import get_action
-
 import ckanext.inspire
-ckanext.inspire.harvesters.log = logging.getLogger('ckanext.inspire.harvesters')
-
 from ckanext.harvest.model import (setup as harvest_model_setup,
                                     HarvestSource,HarvestJob,HarvestObject)
-from ckanext.inspire.harvesters import GeminiHarvester, GeminiDocHarvester, GeminiWafHarvester
+from ckanext.inspire.harvesters import GeminiCswHarvester, GeminiDocHarvester, GeminiWafHarvester
+from ckanext.csw.validation import SchematronValidator
 
-from simple_http_server import serve
 
-
-class TestHarvest(BaseCase):
+class HarvestFixtureBase:
 
     @classmethod
     def setup_class(cls):
-
         # Setup harvest tables
         harvest_model_setup()
 
@@ -38,7 +32,6 @@ class TestHarvest(BaseCase):
         pass
 
     def setup(self):
-
         # Add sysadmin user
         harvest_user = model.User(name=u'harvest', password=u'test')
         model.add_user_to_role(harvest_user, model.Role.ADMIN, model.System())
@@ -132,6 +125,8 @@ class TestHarvest(BaseCase):
         job.save()
 
         return obj
+
+class TestHarvest(HarvestFixtureBase):
 
     def test_harvest_basic(self):
 
@@ -793,4 +788,108 @@ class TestHarvest(BaseCase):
 
         source_dict = get_action('harvest_source_show')(self.context,{'id':source.id})
         assert len(source_dict['status']['packages']) == 1
+
+
+class TestValidation(HarvestFixtureBase):
+
+    def get_validation_errors(self, validation_test_filename):
+        # Create source
+        source_fixture = {
+            'url': u'http://127.0.0.1:8999/single/validation/%s' % validation_test_filename,
+            'type': u'gemini-single'
+        }
+
+        source, job = self._create_source_and_job(source_fixture)
+
+        harvester = GeminiDocHarvester()
+
+        # Gather stage for GeminiDocHarvester includes validation
+        object_ids = harvester.gather_stage(job)
+
+        # Check the validation errors
+        errors = '; '.join([gather_error.message for gather_error in job.gather_errors])
+        return errors
+
+    def test_schematron_error_extraction(self):
+        namespace_map = {'svrl': 'http://purl.oclc.org/dsdl/svrl'}
+        failure_xml = lxml.etree.fromstring('''
+<root xmlns:svrl="%(svrl)s">
+  <svrl:failed-assert test="srv:serviceType/*[1] = 'discovery' or srv:serviceType/*[1] = 'view' or srv:serviceType/*[1] = 'download' or srv:serviceType/*[1] = 'transformation' or srv:serviceType/*[1] = 'invoke' or srv:serviceType/*[1] = 'other'" location="/*[local-name()='MD_Metadata' and namespace-uri()='http://www.isotc211.org/2005/gmd']/*[local-name()='identificationInfo' and namespace-uri()='http://www.isotc211.org/2005/gmd']/*[local-name()='SV_ServiceIdentification' and namespace-uri()='http://www.isotc211.org/2005/srv']">
+    <svrl:text>
+        Service type shall be one of 'discovery', 'view', 'download', 'transformation', 'invoke' or 'other' following INSPIRE generic names.
+      </svrl:text>
+  </svrl:failed-assert>
+</root>
+''' % namespace_map)
+        fail_element = failure_xml.getchildren()[0]
+        details = SchematronValidator.extract_error_details(fail_element)
+        assert_in("srv:serviceType/*[1] = 'discovery'", details)
+        assert_in("/*[local-name()='MD_Metadata'", details)
+        assert_in("Service type shall be one of 'discovery'", details)
+
+    def test_01_dataset_fail_iso19139_schema(self):
+        errors = self.get_validation_errors('01_Dataset_Invalid_XSD_No_Such_Element.xml')
+        assert len(errors) > 0
+        assert_in('ISO19139', errors)
+        assert_in('Could not get the GUID', errors)
+
+    def test_02_dataset_fail_constraints_schematron(self):
+        errors = self.get_validation_errors('02_Dataset_Invalid_19139_Missing_Data_Format.xml')
+        assert len(errors) > 0
+        assert_in('Constraints', errors)
+        assert_in('MD_Distribution / MD_Format: count(distributionFormat + distributorFormat) > 0', errors)
+
+    def test_03_dataset_fail_gemini_schematron(self):
+        errors = self.get_validation_errors('03_Dataset_Invalid_GEMINI_Missing_Keyword.xml')
+        assert len(errors) > 0
+        assert_in('GEMINI', errors)
+        assert_in('Descriptive keywords are mandatory', errors)
+
+    def test_04_dataset_valid(self):
+        errors = self.get_validation_errors('04_Dataset_Valid.xml')
+        assert len(errors) == 0
+
+    def test_05_series_fail_iso19139_schema(self):
+        errors = self.get_validation_errors('05_Series_Invalid_XSD_No_Such_Element.xml')
+        assert len(errors) > 0
+        assert_in('ISO19139', errors)
+        assert_in('Could not get the GUID', errors)
+
+    def test_06_series_fail_constraints_schematron(self):
+        errors = self.get_validation_errors('06_Series_Invalid_19139_Missing_Data_Format.xml')
+        assert len(errors) > 0
+        assert_in('Constraints', errors)
+        assert_in('MD_Distribution / MD_Format: count(distributionFormat + distributorFormat) > 0', errors)
+
+    def test_07_series_fail_gemini_schematron(self):
+        errors = self.get_validation_errors('07_Series_Invalid_GEMINI_Missing_Keyword.xml')
+        assert len(errors) > 0
+        assert_in('GEMINI', errors)
+        assert_in('Descriptive keywords are mandatory', errors)
+
+    def test_08_series_valid(self):
+        errors = self.get_validation_errors('08_Series_Valid.xml')
+        assert len(errors) == 0
+
+    def test_09_service_fail_iso19139_schema(self):
+        errors = self.get_validation_errors('09_Service_Invalid_No_Such_Element.xml')
+        assert len(errors) > 0
+        assert_in('ISO19139', errors)
+        assert_in('Could not get the GUID', errors)
+
+    def test_10_service_fail_constraints_schematron(self):
+        errors = self.get_validation_errors('10_Service_Invalid_19139_Level_Description.xml')
+        assert len(errors) > 0
+        assert_in('Constraints', errors)
+        assert_in("DQ_Scope: 'levelDescription' is mandatory if 'level' notEqual 'dataset' or 'series'.", errors)
+
+    def test_11_service_fail_gemini_schematron(self):
+        errors = self.get_validation_errors('11_Service_Invalid_GEMINI_Service_Type.xml')
+        assert len(errors) > 0
+        assert_in('GEMINI', errors)
+        assert_in("Service type shall be one of 'discovery', 'view', 'download', 'transformation', 'invoke' or 'other' following INSPIRE generic names.", errors)
+
+    def test_12_service_valid(self):
+        errors = self.get_validation_errors('12_Service_Valid.xml')
+        assert len(errors) == 0
 

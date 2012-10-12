@@ -1,7 +1,7 @@
 '''
 Different harvesters for INSPIRE related resources
 
-    - GeminiHarvester - CSW servers with support for the GEMINI metadata profile
+    - GeminiCswHarvester - CSW servers
     - GeminiDocHarvester - An individual GEMINI resource
     - GeminiWafHarvester - An index page with links to GEMINI resources
 
@@ -16,6 +16,7 @@ from string import Template
 from numbers import Number
 import sys
 import uuid
+import os
 import logging
 
 from pylons import config
@@ -62,18 +63,12 @@ def text_traceback():
         ).strip()
     return res
 
-class InspireHarvester(object):
+# When developing, it might be helpful to 'export DEBUG=1' to reraise the
+# exceptions, rather them being caught.
+debug_exception_mode = bool(os.getenv('DEBUG'))
+
+class SpatialHarvester(object):
     # Q: Why does this not inherit from HarvesterBase in ckanext-harvest?
-
-    csw=None
-
-    validator=None
-
-    force_import = False
-
-    extent_template = Template('''
-    {"type":"Polygon","coordinates":[[[$minx, $miny],[$minx, $maxy], [$maxx, $maxy], [$maxx, $miny], [$minx, $miny]]]}
-    ''')
 
     def _is_wms(self,url):
         try:
@@ -84,21 +79,20 @@ class InspireHarvester(object):
             s = wms.WebMapService(url,xml=xml)
             return isinstance(s.contents, dict) and s.contents != {}
         except Exception, e:
-            log.error('WMS check for %s failed with exception: %s'%(url, str(e)))
+            log.error('WMS check for %s failed with exception: %s' % (url, str(e)))
         return False
 
-    def _setup_csw_server(self,url):
-        self.csw = CswService(url)
-
     def _get_validator(self):
-        profiles = [
-            x.strip() for x in
-            config.get(
-                'ckan.inspire.validator.profiles',
-                'iso19139,gemini2',
-            ).split(',')
-        ]
-        self.validator = Validator(profiles=profiles)
+        if not hasattr(self, '_validator'):
+            profiles = [
+                x.strip() for x in
+                config.get(
+                    'ckan.inspire.validator.profiles',
+                    'iso19139,gemini2',
+                ).split(',')
+            ]
+            self._validator = Validator(profiles=profiles)
+        return self._validator
 
     def _save_gather_error(self,message,job):
         err = HarvestGatherError(message=message,job=job)
@@ -125,8 +119,19 @@ class InspireHarvester(object):
         http_response = urllib2.urlopen(url)
         return http_response.read()
 
+class GeminiHarvester(SpatialHarvester):
+    '''Base class for spatial harvesting GEMINI2 documents for the UK Location
+    Programme. May be easily adaptable for other INSPIRE and spatial projects.
 
-    # All three harvesters share the same import stage
+    All three harvesters share the same import stage
+    '''
+
+    force_import = False
+
+    extent_template = Template('''
+    {"type":"Polygon","coordinates":[[[$minx, $miny],[$minx, $maxy], [$maxx, $maxy], [$maxx, $miny], [$minx, $miny]]]}
+    ''')
+
     def import_stage(self, harvest_object):
         log = logging.getLogger(__name__ + '.import')
         log.debug('Import stage for harvest object: %r', harvest_object)
@@ -145,25 +150,24 @@ class InspireHarvester(object):
             self.import_gemini_object(harvest_object.content)
             return True
         except Exception, e:
-            log.error(text_traceback())
+            log.error('Exception during import: %s' % text_traceback())
             if not str(e).strip():
                 self._save_object_error('Error importing Gemini document.', harvest_object, 'Import')
             else:
                 self._save_object_error('Error importing Gemini document: %s' % str(e), harvest_object, 'Import')
 
+            if debug_exception_mode:
+                raise
+
     def import_gemini_object(self, gemini_string):
         log = logging.getLogger(__name__ + '.import')
         xml = etree.fromstring(gemini_string)
 
-        if not self.validator:
-            self._get_validator()
-
-        if self.validator is not None:
-            valid, messages = self.validator.isvalid(xml)
-            if not valid:
-                log.error('Errors found for object with GUID %s:' % self.obj.guid)
-                out = messages[0] + ':\n' + '\n'.join(messages[1:])
-                self._save_object_error(out,self.obj,'Import')
+        valid, messages = self._get_validator().is_valid(xml)
+        if not valid:
+            log.error('Errors found for object with GUID %s:' % self.obj.guid)
+            out = messages[0] + ':\n' + '\n'.join(messages[1:])
+            self._save_object_error(out,self.obj,'Import')
 
         unicode_gemini_string = etree.tostring(xml, encoding=unicode, pretty_print=True)
 
@@ -436,7 +440,7 @@ class InspireHarvester(object):
 
         return package
 
-    def gen_new_name(self,title):
+    def gen_new_name(self, title):
         name = munge_title_to_name(title).replace('_', '-')
         while '--' in name:
             name = name.replace('--', '-')
@@ -511,6 +515,8 @@ class InspireHarvester(object):
             package_dict = action_function(context, package_dict)
         except ValidationError,e:
             raise Exception('Validation Error: %s' % str(e.error_summary))
+            if debug_exception_mode:
+                raise
 
         return package_dict
 
@@ -527,17 +533,13 @@ class InspireHarvester(object):
         if gemini_xml is None:
             self._save_gather_error('Content is not a valid Gemini document',self.harvest_job)
 
-        if not self.validator:
-            self._get_validator()
-
-        if self.validator is not None:
-            valid, messages = self.validator.isvalid(gemini_xml)
-            if not valid:
-                out = messages[0] + ':\n' + '\n'.join(messages[1:])
-                if url:
-                    self._save_gather_error('Validation error for %s %r'% (url,out),self.harvest_job)
-                else:
-                    self._save_gather_error('Validation error. %r'%out,self.harvest_job)
+        valid, messages = self._get_validator().is_valid(gemini_xml)
+        if not valid:
+            out = messages[0] + ':\n' + '\n'.join(messages[1:])
+            if url:
+                self._save_gather_error('Validation error for %s - %s'% (url,out),self.harvest_job)
+            else:
+                self._save_gather_error('Validation error - %s'%out,self.harvest_job)
 
         gemini_string = etree.tostring(gemini_xml)
         gemini_document = GeminiDocument(gemini_string)
@@ -546,11 +548,13 @@ class InspireHarvester(object):
 
         return gemini_string, gemini_guid
 
-class GeminiHarvester(InspireHarvester,SingletonPlugin):
+class GeminiCswHarvester(GeminiHarvester, SingletonPlugin):
     '''
-    A Harvester for CSW servers that implement the GEMINI metadata profile
+    A Harvester for CSW servers
     '''
     implements(IHarvester)
+
+    csw=None
 
     def info(self):
         return {
@@ -561,19 +565,18 @@ class GeminiHarvester(InspireHarvester,SingletonPlugin):
 
     def gather_stage(self, harvest_job):
         log = logging.getLogger(__name__ + '.CSW.gather')
-        log.debug('GeminiHarvester gather_stage for job: %r', harvest_job)
+        log.debug('GeminiCswHarvester gather_stage for job: %r', harvest_job)
         # Get source URL
         url = harvest_job.source.url
 
-        # Setup CSW server
         try:
-            self._setup_csw_server(url)
+            self._setup_csw_client(url)
         except Exception, e:
-            self._save_gather_error('Error contacting the CSW server: %s' % e,harvest_job)
+            self._save_gather_error('Error contacting the CSW server: %s' % e, harvest_job)
             return None
 
 
-        log.debug('Starting gathering for %s ' % url)
+        log.debug('Starting gathering for %s' % url)
         used_identifiers = []
         ids = []
         try:
@@ -589,7 +592,7 @@ class GeminiHarvester(InspireHarvester,SingletonPlugin):
                         continue
 
                     # Create a new HarvestObject for this identifier
-                    obj = HarvestObject(guid = identifier, job = harvest_job)
+                    obj = HarvestObject(guid=identifier, job=harvest_job)
                     obj.save()
 
                     ids.append(obj.id)
@@ -610,26 +613,26 @@ class GeminiHarvester(InspireHarvester,SingletonPlugin):
 
     def fetch_stage(self,harvest_object):
         log = logging.getLogger(__name__ + '.CSW.fetch')
-        log.debug('GeminiHarvester fetch_stage for object: %r', harvest_object)
+        log.debug('GeminiCswHarvester fetch_stage for object: %r', harvest_object)
 
         url = harvest_object.source.url
-        # Setup CSW server
         try:
-            self._setup_csw_server(url)
+            self._setup_csw_client(url)
         except Exception, e:
-            self._save_object_error('Error contacting the CSW server: %s' % e,harvest_object)
+            self._save_object_error('Error contacting the CSW server: %s' % e,
+                                    harvest_object)
             return False
-
 
         identifier = harvest_object.guid
         try:
             record = self.csw.getrecordbyid([identifier])
         except Exception, e:
-            self._save_object_error('Error getting the CSW record with GUID %s' % identifier,harvest_object)
+            self._save_object_error('Error getting the CSW record with GUID %s' % identifier, harvest_object)
             return False
 
         if record is None:
-            self._save_object_error('Empty record for GUID %s' % identifier,harvest_object)
+            self._save_object_error('Empty record for GUID %s' % identifier,
+                                    harvest_object)
             return False
 
         try:
@@ -637,14 +640,18 @@ class GeminiHarvester(InspireHarvester,SingletonPlugin):
             harvest_object.content = record['xml']
             harvest_object.save()
         except Exception,e:
-            self._save_object_error('Error saving the harvest object for GUID %s [%r]' % (identifier,e),harvest_object)
+            self._save_object_error('Error saving the harvest object for GUID %s [%r]' % \
+                                    (identifier, e), harvest_object)
             return False
 
         log.debug('XML content saved (len %s)', len(record['xml']))
         return True
 
+    def _setup_csw_client(self, url):
+        self.csw = CswService(url)
 
-class GeminiDocHarvester(InspireHarvester,SingletonPlugin):
+
+class GeminiDocHarvester(GeminiHarvester, SingletonPlugin):
     '''
     A Harvester for individual GEMINI documents
     '''
@@ -694,6 +701,8 @@ class GeminiDocHarvester(InspireHarvester,SingletonPlugin):
                 return None
         except Exception, e:
             self._save_gather_error('Error parsing the document. Is this a valid Gemini document?: %s [%r]'% (url,e),harvest_job)
+            if debug_exception_mode:
+                raise
             return None
 
 
@@ -702,9 +711,10 @@ class GeminiDocHarvester(InspireHarvester,SingletonPlugin):
         return True
 
 
-class GeminiWafHarvester(InspireHarvester,SingletonPlugin):
+class GeminiWafHarvester(GeminiHarvester, SingletonPlugin):
     '''
-    A Harvester for index pages with links to GEMINI documents
+    A Harvester from a WAF server containing GEMINI documents.
+    e.g. Apache serving a directory of GEMINI files.
     '''
 
     implements(IHarvester)
