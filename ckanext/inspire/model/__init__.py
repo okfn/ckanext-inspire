@@ -9,24 +9,40 @@ class MappedXmlObject(object):
 
 
 class MappedXmlDocument(MappedXmlObject):
-    def __init__(self, content):
-        self.content = content
+    def __init__(self, xml_str=None, xml_tree=None):
+        assert (xml_str or xml_tree is not None), 'Must provide some XML in one format or another'
+        self.xml_str = xml_str
+        self.xml_tree = xml_tree
 
     def read_values(self):
+        '''For all of the elements listed, finds the values of them in the
+        XML and returns them.'''
         values = {}
-        tree = self.get_content_tree()
+        tree = self.get_xml_tree()
         for element in self.elements:
             values[element.name] = element.read_value(tree)
         self.infer_values(values)
         return values
 
-    def get_content_tree(self):
-        parser = etree.XMLParser(remove_blank_text=True)
-        if type(self.content) == unicode:
-            content = self.content.encode('utf8')
-        else:
-            content = self.content
-        return etree.fromstring(content, parser=parser)
+    def read_value(self, name):
+        '''For the given element name, find the value in the XML and return
+        it.
+        '''
+        tree = self.get_xml_tree()
+        for element in self.elements:
+            if element.name == name:
+                return element.read_value(tree)
+        raise KeyError
+
+    def get_xml_tree(self):
+        if self.xml_tree is None:
+            parser = etree.XMLParser(remove_blank_text=True)
+            if type(self.xml_str) == unicode:
+                xml_str = self.xml_str.encode('utf8')
+            else:
+                xml_str = self.xml_str
+            self.xml_tree = etree.fromstring(xml_str, parser=parser)
+        return self.xml_tree
 
     def infer_values(self, values):
         pass

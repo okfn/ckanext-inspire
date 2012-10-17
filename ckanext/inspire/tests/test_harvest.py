@@ -819,7 +819,7 @@ class TestValidation(HarvestFixtureBase):
 
     @classmethod
     def setup_class(cls):
-        SpatialHarvester._validator = Validator(profiles=['iso19139', 'constraints', 'gemini2'])
+        SpatialHarvester._validator = Validator(profiles=['iso19139eden', 'constraints', 'gemini2'])
         HarvestFixtureBase.setup_class()
 
     def get_validation_errors(self, validation_test_filename):
@@ -844,6 +844,8 @@ class TestValidation(HarvestFixtureBase):
         failure_xml = lxml.etree.fromstring(validation_error_xml)
         fail_element = failure_xml.getchildren()[0]
         details = SchematronValidator.extract_error_details(fail_element)
+        if isinstance(details, tuple):
+            details = details[1]
         assert_in("srv:serviceType/*[1] = 'discovery'", details)
         assert_in("/*[local-name()='MD_Metadata'", details)
         assert_in("Service type shall be one of 'discovery'", details)
@@ -852,6 +854,7 @@ class TestValidation(HarvestFixtureBase):
         errors = self.get_validation_errors('01_Dataset_Invalid_XSD_No_Such_Element.xml')
         assert len(errors) > 0
         assert_in('ISO19139', errors)
+        assert_in('(gmx.xsd)', errors)
         assert_in('Could not get the GUID', errors)
 
     def test_02_dataset_fail_constraints_schematron(self):
@@ -874,6 +877,7 @@ class TestValidation(HarvestFixtureBase):
         errors = self.get_validation_errors('05_Series_Invalid_XSD_No_Such_Element.xml')
         assert len(errors) > 0
         assert_in('ISO19139', errors)
+        assert_in('(gmx.xsd)', errors)
         assert_in('Could not get the GUID', errors)
 
     def test_06_series_fail_constraints_schematron(self):
@@ -896,6 +900,7 @@ class TestValidation(HarvestFixtureBase):
         errors = self.get_validation_errors('09_Service_Invalid_No_Such_Element.xml')
         assert len(errors) > 0
         assert_in('ISO19139', errors)
+        assert_in('(gmx.xsd & srv.xsd)', errors)
         assert_in('Could not get the GUID', errors)
 
     def test_10_service_fail_constraints_schematron(self):
@@ -912,5 +917,12 @@ class TestValidation(HarvestFixtureBase):
 
     def test_12_service_valid(self):
         errors = self.get_validation_errors('12_Service_Valid.xml')
-        assert len(errors) == 0
+        assert len(errors) == 0, errors
 
+    def test_13_dataset_fail_iso19139_schema_2(self):
+        # This test Dataset has srv tags and only Service metadata should.
+        errors = self.get_validation_errors('13_Dataset_Invalid_Element_srv.xml')
+        assert len(errors) > 0
+        assert_in('ISO19139', errors)
+        assert_in('(gmx.xsd)', errors)
+        assert_in('(u"Element \'{http://www.isotc211.org/2005/srv}SV_ServiceIdentification\': This element is not expected.', errors)
