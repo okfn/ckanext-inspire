@@ -1,5 +1,5 @@
 -e git+https://github.com/okfn/ckanext-csw.git#egg=ckanext-csw
 -e git+https://github.com/okfn/ckanext-harvest.git#egg=ckanext-harvest
 -e git+https://github.com/okfn/ckanext-spatial.git#egg=ckanext-spatial
-lxml==2.2.4
+lxml==4.6.3
 owslib
